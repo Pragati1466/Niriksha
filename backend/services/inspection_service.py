@@ -16,12 +16,16 @@ from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
+import asyncio
 
 from sqlalchemy.orm import Session
 
 from .base_service import BaseService
+from .ai_integration_service import get_ai_service
 from ..repositories.inspection_repository import InspectionRepository
 from ..repositories.state_history_repository import InspectionStateHistoryRepository
+from ..repositories.checklist_repository import ChecklistRepository
+from ..repositories.evidence_repository import EvidenceRepository
 from ..database.models.inspection import Inspection, InspectionStatus, InspectionPriority
 from ..database.models.state_history import InspectionStateHistory
 
@@ -44,6 +48,8 @@ class InspectionService(BaseService[Inspection, InspectionRepository]):
         inspection_repo = InspectionRepository(Inspection, session)
         super().__init__(inspection_repo, session)
         self.state_history_repo = InspectionStateHistoryRepository(InspectionStateHistory, session)
+        self.checklist_repo = ChecklistRepository(session)
+        self.evidence_repo = EvidenceRepository(session)
     
     def create_inspection(
         self,
@@ -142,6 +148,10 @@ class InspectionService(BaseService[Inspection, InspectionRepository]):
             transition_reason=transition_reason,
             changed_by=changed_by
         )
+        
+        # Trigger AI risk score calculation when inspection is completed
+        if new_status == InspectionStatus.COMPLETED:
+            asyncio.create_task(self._calculate_ai_risk_score(updated_inspection))
         
         return updated_inspection
     
@@ -295,6 +305,55 @@ class InspectionService(BaseService[Inspection, InspectionRepository]):
             List[Inspection]: List of overdue inspections
         """
         return self.repository.find_overdue_inspections(inspector_id)
+    
+    async def _calculate_ai_risk_score(self, inspection: Inspection):
+        """
+        Calculate AI risk score for inspection asynchronously.
+        
+        Args:
+            inspection: Inspection to calculate risk score for
+        """
+        try:
+            ai_service = get_ai_service()
+            
+            # Get checklist responses
+            responses = self.checklist_repo.find_by_inspection(inspection.id)
+            
+            # Get evidence count
+            evidence_list = self.evidence_repo.find_by_inspection(inspection.id)
+            
+            # Calculate violation count
+            violation_count = sum(1 for r in responses if not getattr(r, 'is_compliant', False))
+            
+            # Try AI calculation
+            result = await ai_service.calculate_risk_score(
+                inspection_id=str(inspection.id),
+                checklist_responses=[r.to_dict() for r in responses],
+                evidence_count=len(evidence_list),
+                violation_count=violation_count
+            )
+            
+            # Fallback to rule-based calculation
+            if result is None:
+                from ..api.middleware.logging import get_logger
+                logger = get_logger(__name__)
+                logger.warning(f"AI risk score failed, using fallback: {inspection.id}")
+                result = ai_service.calculate_fallback_risk_score(
+                    checklist_responses=[r.to_dict() for r in responses],
+                    evidence_count=len(evidence_list),
+                    violation_count=violation_count
+                )
+            
+            # Update inspection with risk score
+            inspection.risk_score = result.get("risk_score")
+            inspection.risk_level = result.get("risk_level")
+            self.update(inspection)
+            
+        except Exception as e:
+            # Log error but don't fail the inspection completion
+            from ..api.middleware.logging import get_logger
+            logger = get_logger(__name__)
+            logger.error(f"Error calculating AI risk score for inspection {inspection.id}: {str(e)}")
     
     def _record_state_transition(
         self,
