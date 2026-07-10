@@ -16,10 +16,13 @@ from .base_service import BaseService
 from .inspection_service import InspectionService
 from .checklist_service import ChecklistService
 from .evidence_service import EvidenceService
+from .ai_integration_service import AIIntegrationService, get_ai_service
 
 __all__ = [
     "BaseService",
     "InspectionService",
     "ChecklistService",
     "EvidenceService",
+    "AIIntegrationService",
+    "get_ai_service",
 ]
