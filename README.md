@@ -127,50 +127,6 @@ graph TB
 | Containerization | Docker & Docker Compose |
 | API Documentation | Swagger UI / ReDoc |
 
-## Project Structure
-
-```
-niriksha/
-├── backend/                          # FastAPI backend
-│   ├── api/
-│   │   ├── main.py                   # Application entry point
-│   │   ├── middleware/               # Auth, rate limiting, sanitization
-│   │   ├── routers/                  # API endpoints
-│   │   └── schemas/                  # Pydantic validation
-│   ├── database/
-│   │   ├── models/                   # SQLAlchemy models
-│   │   ├── migrations/               # Database migrations
-│   │   └── session.py                # Session management
-│   ├── repositories/                 # Data access layer
-│   ├── services/                     # Business logic
-│   │   ├── ai_integration_service.py # AI service integration
-│   │   ├── inspection_service.py    # Inspection logic
-│   │   ├── evidence_service.py       # Evidence management
-│   │   └── checklist_service.py      # Checklist logic
-│   ├── tests/                        # Unit & integration tests
-│   ├── requirements.txt
-│   ├── Dockerfile
-│   └── docker-compose.yml
-├── frontend/                         # React frontend
-│   ├── src/
-│   │   ├── components/               # Reusable components
-│   │   ├── pages/                    # Page components
-│   │   ├── services/                 # API client
-│   │   ├── hooks/                    # Custom React hooks
-│   │   └── store/                    # State management
-│   ├── package.json
-│   ├── vite.config.js
-│   ├── tailwind.config.js
-│   └── Dockerfile
-├── inspection-workflow-module/       # Documentation
-│   ├── TASK_BREAKDOWN.md
-│   ├── BACKEND_ARCHITECTURE.md
-│   ├── FRONTEND_ARCHITECTURE.md
-│   ├── DATABASE_SCHEMA.md
-│   └── TEST_PLAN.md
-└── README.md
-```
-
 ## Workflow
 
 ```mermaid
@@ -226,14 +182,6 @@ Frontend runs on http://localhost:5173
 cd backend
 docker-compose up --build
 ```
-
-## Team Responsibilities
-
-| Team Member | Responsibilities |
-|-------------|-----------------|
-| Pragati | Backend architecture, AI integration, database design, API development |
-| Sakshi | Frontend development, UI/UX design, mobile responsiveness, state management |
-| Mridu | Testing strategy, quality assurance, documentation, deployment configuration |
 
 ## Future Scope
 
