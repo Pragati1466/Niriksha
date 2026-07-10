@@ -25,6 +25,7 @@ from ..api.routers import (
     evidence_router,
     notes_router,
     sync_router,
+    ai_router,
 )
 from ..api.middleware.error_handler import (
     register_exception_handlers,
@@ -187,6 +188,7 @@ app.include_router(checklist_router, prefix="/api/v1")
 app.include_router(evidence_router, prefix="/api/v1")
 app.include_router(notes_router, prefix="/api/v1")
 app.include_router(sync_router, prefix="/api/v1")
+app.include_router(ai_router, prefix="/api/v1")
 
 
 # ============================================================================

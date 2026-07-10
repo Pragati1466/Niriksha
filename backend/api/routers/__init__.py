@@ -16,6 +16,7 @@ from .checklist import router as checklist_router
 from .evidence import router as evidence_router
 from .notes import router as notes_router
 from .sync import router as sync_router
+from .ai import router as ai_router
 
 __all__ = [
     "inspection_router",
@@ -23,4 +24,5 @@ __all__ = [
     "evidence_router",
     "notes_router",
     "sync_router",
+    "ai_router",
 ]
