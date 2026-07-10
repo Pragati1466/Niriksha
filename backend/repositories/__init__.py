@@ -29,6 +29,10 @@ from .evidence_repository import (
     EvidenceRepository,
 )
 
+from .state_history_repository import (
+    InspectionStateHistoryRepository,
+)
+
 __all__ = [
     "BaseRepository",
     "InspectionRepository",
@@ -37,4 +41,5 @@ __all__ = [
     "ChecklistSectionRepository",
     "ChecklistItemRepository",
     "EvidenceRepository",
+    "InspectionStateHistoryRepository",
 ]
