@@ -1,0 +1,75 @@
+# NIRIKSHA - Inspection Workflow & Data Collection Module
+# Docker Compose Configuration
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:14-alpine
+    container_name: niriksha-postgres
+    environment:
+      POSTGRES_DB: niriksha
+      POSTGRES_USER: niriksha
+      POSTGRES_PASSWORD: niriksha_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U niriksha"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for Celery
+  redis:
+    image: redis:7-alpine
+    container_name: niriksha-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # FastAPI Backend
+  backend:
+    build: .
+    container_name: niriksha-backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://niriksha:niriksha_password@postgres:5432/niriksha
+      REDIS_URL: redis://redis:6379/0
+      LOG_LEVEL: INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Celery Worker
+  celery-worker:
+    build: .
+    container_name: niriksha-celery-worker
+    environment:
+      DATABASE_URL: postgresql://niriksha:niriksha_password@postgres:5432/niriksha
+      REDIS_URL: redis://redis:6379/0
+      LOG_LEVEL: INFO
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A api.tasks worker --loglevel=info
+
+volumes:
+  postgres_data:
+  redis_data:
