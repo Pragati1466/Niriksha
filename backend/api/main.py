@@ -31,6 +31,8 @@ from ..api.middleware.error_handler import (
     register_exception_handlers,
     add_request_id_middleware,
 )
+from ..api.middleware.rate_limit import add_rate_limiting_middleware
+from ..api.middleware.sanitization import add_sanitization_middleware
 from ..api.middleware.logging import (
     setup_logging,
     RequestLoggingMiddleware,
@@ -92,11 +94,19 @@ app = FastAPI(
 # CORS Configuration
 # ============================================================================
 
+import os
+
+# Get allowed origins from environment variable
+ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS",
+    "http://localhost:3000,http://localhost:5173"
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -104,6 +114,12 @@ app.add_middleware(
 # ============================================================================
 # Middleware Configuration
 # ============================================================================
+
+# Add rate limiting middleware
+add_rate_limiting_middleware(app)
+
+# Add input sanitization middleware
+add_sanitization_middleware(app)
 
 # Add request ID middleware
 add_request_id_middleware(app)

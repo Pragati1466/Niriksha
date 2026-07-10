@@ -126,8 +126,8 @@ class AIIntegrationService:
             "generate_report": CircuitBreaker()
         }
         
-        # HTTP client
-        self.client = httpx.Client(timeout=timeout)
+        # HTTP client (async for better performance)
+        self.client = httpx.AsyncClient(timeout=timeout)
     
     def _calculate_delay(self, attempt: int) -> float:
         """
@@ -432,7 +432,8 @@ class AIIntegrationService:
     
     def close(self):
         """Close HTTP client."""
-        self.client.close()
+        import asyncio
+        asyncio.create_task(self.client.aclose())
 
 
 # Singleton instance

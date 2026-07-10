@@ -14,6 +14,7 @@ Version: 1.0.0
 
 import uuid
 import traceback
+import os
 from typing import Any, Optional
 from datetime import datetime
 
@@ -23,6 +24,9 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from starlette.exceptions import HTTPException as StarletteHTTPException
+
+# Environment variable to control error detail exposure
+DEBUG_MODE = os.getenv("DEBUG", "false").lower() == "true"
 
 
 class AppException(Exception):
@@ -271,20 +275,26 @@ async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError) -
     traceback.print_exc()
     
     if isinstance(exc, IntegrityError):
+        # Sanitize error details for production
+        error_detail = str(exc.orig) if DEBUG_MODE else "Database constraint violated"
+        
         error_response = format_error_response(
             code="INTEGRITY_ERROR",
             message="Database integrity constraint violated",
             status_code=status.HTTP_409_CONFLICT,
-            details={"detail": str(exc.orig)},
+            details={"detail": error_detail} if DEBUG_MODE else None,
             request_id=request_id
         )
         status_code = status.HTTP_409_CONFLICT
     else:
+        # Sanitize error details for production
+        error_detail = str(exc) if DEBUG_MODE else "Database operation failed"
+        
         error_response = format_error_response(
             code="DATABASE_ERROR",
             message="Database operation failed",
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            details={"detail": str(exc)},
+            details={"detail": error_detail} if DEBUG_MODE else None,
             request_id=request_id
         )
         status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -311,11 +321,14 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
     # Log the full traceback for debugging
     traceback.print_exc()
     
+    # Sanitize error details for production
+    error_detail = str(exc) if DEBUG_MODE else "An unexpected error occurred"
+    
     error_response = format_error_response(
         code="INTERNAL_ERROR",
         message="An unexpected error occurred",
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        details={"detail": str(exc)},
+        details={"detail": error_detail} if DEBUG_MODE else None,
         request_id=request_id
     )
     

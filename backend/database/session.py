@@ -12,13 +12,25 @@ Date: 2026-07-10
 Version: 1.0.0
 """
 
+import os
 from typing import Generator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, Session
 from contextlib import contextmanager
 
-# Database configuration
-DATABASE_URL = "postgresql://user:password@localhost:5432/niriksha"
+# Database configuration from environment variables
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://user:password@localhost:5432/niriksha"
+)
+
+# Validate database URL is configured
+if DATABASE_URL == "postgresql://user:password@localhost:5432/niriksha":
+    import warnings
+    warnings.warn(
+        "Using default database credentials. Please set DATABASE_URL environment variable in production.",
+        RuntimeWarning
+    )
 
 # Create engine
 engine = create_engine(
