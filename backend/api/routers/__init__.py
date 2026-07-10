@@ -14,9 +14,13 @@ Version: 1.0.0
 from .inspection import router as inspection_router
 from .checklist import router as checklist_router
 from .evidence import router as evidence_router
+from .notes import router as notes_router
+from .sync import router as sync_router
 
 __all__ = [
     "inspection_router",
     "checklist_router",
     "evidence_router",
+    "notes_router",
+    "sync_router",
 ]
