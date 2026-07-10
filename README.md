@@ -221,6 +221,26 @@ npm run dev
 ```
 Frontend runs on http://localhost:5173
 
+### Login Credentials (Demo Mode)
+
+The application currently uses synthetic data for testing. You can login using the following credentials:
+
+**Valid Credentials:**
+- **Inspector:** `inspector@niriksha.gov` / `inspector123`
+- **Admin:** `admin@niriksha.gov` / `admin123`
+- **Demo:** `demo@niriksha.gov` / `demo123`
+
+**Alternative - Demo Mode:**
+Click the "Try Demo Mode" button on the login page to access the application without credentials.
+
+**Testing Instructions:**
+1. **Correct Login:** Use valid credentials → Redirects to Dashboard
+2. **Wrong Password:** Use invalid password → Shows "Invalid credentials" error
+3. **Session Persistence:** Login and refresh page → User stays logged in (JWT stored in localStorage)
+4. **Logout:** Click logout button → Redirected to Login page
+
+**Note:** The application currently uses synthetic data generation (50+ pre-generated inspections, 100+ evidence files) for testing purposes. Real backend integration with FastAPI and PostgreSQL is pending.
+
 ### Docker Setup
 ```bash
 cd backend
