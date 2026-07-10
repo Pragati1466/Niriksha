@@ -152,6 +152,7 @@ class InspectionService(BaseService[Inspection, InspectionRepository]):
         # Trigger AI risk score calculation when inspection is completed
         if new_status == InspectionStatus.COMPLETED:
             asyncio.create_task(self._calculate_ai_risk_score(updated_inspection))
+            asyncio.create_task(self._generate_ai_report(updated_inspection))
         
         return updated_inspection
     
@@ -354,6 +355,40 @@ class InspectionService(BaseService[Inspection, InspectionRepository]):
             from ..api.middleware.logging import get_logger
             logger = get_logger(__name__)
             logger.error(f"Error calculating AI risk score for inspection {inspection.id}: {str(e)}")
+    
+    async def _generate_ai_report(self, inspection: Inspection):
+        """
+        Generate AI report for inspection asynchronously.
+        
+        Args:
+            inspection: Inspection to generate report for
+        """
+        try:
+            ai_service = get_ai_service()
+            
+            # Call AI report generation
+            result = await ai_service.generate_report(
+                inspection_id=str(inspection.id),
+                report_type="detailed",
+                include_recommendations=True,
+                include_charts=True
+            )
+            
+            # Update inspection with report result
+            if result:
+                inspection.report_url = result.get("report_url")
+                inspection.report_generated_at = datetime.fromisoformat(result.get("generated_at")) if result.get("generated_at") else datetime.now()
+                self.update(inspection)
+            else:
+                from ..api.middleware.logging import get_logger
+                logger = get_logger(__name__)
+                logger.warning(f"AI report generation failed: {inspection.id}")
+                
+        except Exception as e:
+            # Log error but don't fail the inspection completion
+            from ..api.middleware.logging import get_logger
+            logger = get_logger(__name__)
+            logger.error(f"Error generating AI report for inspection {inspection.id}: {str(e)}")
     
     def _record_state_transition(
         self,
