@@ -15,10 +15,12 @@ from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
+import asyncio
 
 from sqlalchemy.orm import Session
 
 from .base_service import BaseService
+from .ai_integration_service import get_ai_service
 from ..repositories.evidence_repository import EvidenceRepository
 from ..database.models.evidence import Evidence, EvidenceType, VerificationStatus
 
@@ -104,7 +106,60 @@ class EvidenceService(BaseService[Evidence, EvidenceRepository]):
             verification_status=VerificationStatus.PENDING
         )
         
-        return self.create(evidence)
+        created_evidence = self.create(evidence)
+        
+        # Trigger AI verification asynchronously
+        asyncio.create_task(self._trigger_ai_verification(created_evidence))
+        
+        return created_evidence
+    
+    async def _trigger_ai_verification(self, evidence: Evidence):
+        """
+        Trigger AI verification for evidence asynchronously.
+        
+        Args:
+            evidence: Evidence to verify
+        """
+        try:
+            ai_service = get_ai_service()
+            
+            # Prepare metadata for AI verification
+            metadata = {
+                "capture_timestamp": evidence.capture_timestamp.isoformat() if evidence.capture_timestamp else None,
+                "location": {
+                    "lat": float(evidence.capture_location_lat) if evidence.capture_location_lat else None,
+                    "lng": float(evidence.capture_location_lng) if evidence.capture_location_lng else None,
+                    "accuracy": float(evidence.capture_location_accuracy) if evidence.capture_location_accuracy else None
+                } if evidence.capture_location_lat else None,
+                "device_id": evidence.device_id
+            }
+            
+            # Call AI verification
+            result = await ai_service.verify_evidence(
+                evidence_id=str(evidence.id),
+                file_url=evidence.file_path,
+                file_type=evidence.evidence_type,
+                metadata=metadata
+            )
+            
+            # Update evidence with verification result
+            if result:
+                evidence.verification_status = result.get("verification_status", "manual_review_required")
+                evidence.verification_confidence = Decimal(str(result.get("confidence", 0))) if result.get("confidence") else None
+                evidence.verification_details = result.get("analysis_details")
+                self.update(evidence)
+            else:
+                # Mark for manual review if AI failed
+                evidence.verification_status = "manual_review_required"
+                self.update(evidence)
+                
+        except Exception as e:
+            # Log error but don't fail the evidence creation
+            from ..api.middleware.logging import get_logger
+            logger = get_logger(__name__)
+            logger.error(f"Error triggering AI verification for evidence {evidence.id}: {str(e)}")
+            evidence.verification_status = "manual_review_required"
+            self.update(evidence)
     
     def update_verification_status(
         self,
