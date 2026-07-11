@@ -10,6 +10,7 @@ import siteRoutes from './routes/sites'
 import templateRoutes from './routes/templates'
 import reportRoutes from './routes/reports'
 import aiRoutes from './routes/ai'
+import agentRoutes from './routes/agents'
 
 dotenv.config()
 
@@ -38,6 +39,7 @@ app.use('/api/sites', siteRoutes)
 app.use('/api/templates', templateRoutes)
 app.use('/api/reports', reportRoutes)
 app.use('/api/ai', aiRoutes)
+app.use('/api/agents', agentRoutes)
 
 app.get('/', (req, res) => {
   res.json({ 
