@@ -11,6 +11,7 @@ import templateRoutes from './routes/templates'
 import reportRoutes from './routes/reports'
 import aiRoutes from './routes/ai'
 import agentRoutes from './routes/agents'
+import aiFeaturesRoutes from './routes/ai-features'
 import { setupSwagger } from './routes/swagger'
 
 dotenv.config()
@@ -41,6 +42,7 @@ app.use('/api/templates', templateRoutes)
 app.use('/api/reports', reportRoutes)
 app.use('/api/ai', aiRoutes)
 app.use('/api/agents', agentRoutes)
+app.use('/api/ai-features', aiFeaturesRoutes)
 
 // Setup Swagger documentation
 setupSwagger(app)
