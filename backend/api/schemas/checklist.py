@@ -26,7 +26,7 @@ class ResponseType:
     DATE = "date"
     MULTIPLE_CHOICE = "multiple_choice"
     
-    ALL = [YES_NO, TEXT, NUMBER, DROPDOWN, DATE, MULTIPLE_CHOICE]
+    ALL = (YES_NO, TEXT, NUMBER, DROPDOWN, DATE, MULTIPLE_CHOICE)
 
 
 class SeverityLevel:
@@ -35,7 +35,7 @@ class SeverityLevel:
     MAJOR = "major"
     MINOR = "minor"
     
-    ALL = [CRITICAL, MAJOR, MINOR]
+    ALL = (CRITICAL, MAJOR, MINOR)
 
 
 class ChecklistResponseCreateRequest(BaseModel):

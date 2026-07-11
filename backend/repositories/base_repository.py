@@ -25,6 +25,11 @@ from ..database.models.base import Base
 ModelType = TypeVar("ModelType", bound=Base)
 
 
+class OptimisticLockError(Exception):
+    """Exception raised when optimistic lock conflict is detected."""
+    pass
+
+
 class BaseRepository(Generic[ModelType]):
     """
     Base repository class with common CRUD operations.
@@ -179,18 +184,20 @@ class BaseRepository(Generic[ModelType]):
             self.session.rollback()
             raise self._handle_error(e, f"Error updating {self.model.__name__}")
     
-    def update_by_id(self, id: UUID, updates: dict) -> Optional[ModelType]:
+    def update_by_id(self, id: UUID, updates: dict, expected_version: Optional[int] = None) -> Optional[ModelType]:
         """
         Update an entity by ID with a dictionary of updates.
         
         Args:
             id: The UUID of the entity to update
             updates: Dictionary of field names and new values
+            expected_version: Expected version for optimistic locking
             
         Returns:
             Optional[ModelType]: The updated entity if found, None otherwise
             
         Raises:
+            OptimisticLockError: If version conflict is detected
             SQLAlchemyError: If database operation fails
         """
         try:
@@ -198,13 +205,28 @@ class BaseRepository(Generic[ModelType]):
             if entity is None:
                 return None
             
+            # Check version for optimistic locking
+            if expected_version is not None and hasattr(entity, 'version'):
+                if entity.version != expected_version:
+                    raise OptimisticLockError(
+                        f"Version conflict for {self.model.__name__} {id}. "
+                        f"Expected version {expected_version}, found {entity.version}"
+                    )
+            
             for field, value in updates.items():
                 if hasattr(entity, field):
                     setattr(entity, field, value)
             
+            # Increment version if model has version field
+            if hasattr(entity, 'version'):
+                entity.version += 1
+            
             self.session.commit()
             self.session.refresh(entity)
             return entity
+        except OptimisticLockError:
+            self.session.rollback()
+            raise
         except SQLAlchemyError as e:
             self.session.rollback()
             raise self._handle_error(e, f"Error updating {self.model.__name__} with id {id}")
@@ -230,17 +252,19 @@ class BaseRepository(Generic[ModelType]):
             self.session.rollback()
             raise self._handle_error(e, f"Error deleting {self.model.__name__}")
     
-    def delete_by_id(self, id: UUID) -> bool:
+    def delete_by_id(self, id: UUID, expected_version: Optional[int] = None) -> bool:
         """
         Delete an entity by ID.
         
         Args:
             id: The UUID of the entity to delete
+            expected_version: Expected version for optimistic locking
             
         Returns:
             bool: True if deleted successfully, False if not found
             
         Raises:
+            OptimisticLockError: If version conflict is detected
             SQLAlchemyError: If database operation fails
         """
         try:
@@ -248,7 +272,18 @@ class BaseRepository(Generic[ModelType]):
             if entity is None:
                 return False
             
+            # Check version for optimistic locking
+            if expected_version is not None and hasattr(entity, 'version'):
+                if entity.version != expected_version:
+                    raise OptimisticLockError(
+                        f"Version conflict for {self.model.__name__} {id}. "
+                        f"Expected version {expected_version}, found {entity.version}"
+                    )
+            
             return self.delete(entity)
+        except OptimisticLockError:
+            self.session.rollback()
+            raise
         except SQLAlchemyError as e:
             self.session.rollback()
             raise self._handle_error(e, f"Error deleting {self.model.__name__} with id {id}")

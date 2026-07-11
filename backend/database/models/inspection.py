@@ -255,35 +255,49 @@ class Inspection(VersionedModel):
         doc="Items with responses"
     )
     
-    # Relationships (to be implemented when related models are created)
-    # checklist_responses: Mapped[list["InspectionChecklist"]] = relationship(
-    #     back_populates="inspection",
-    #     cascade="all, delete-orphan"
-    # )
-    # evidence: Mapped[list["Evidence"]] = relationship(
-    #     back_populates="inspection",
-    #     cascade="all, delete-orphan"
-    # )
-    # notes: Mapped[list["InspectionNote"]] = relationship(
-    #     back_populates="inspection",
-    #     cascade="all, delete-orphan"
-    # )
-    # state_history: Mapped[list["InspectionStateHistory"]] = relationship(
-    #     back_populates="inspection",
-    #     cascade="all, delete-orphan"
-    # )
-    # location_logs: Mapped[list["InspectionLocationLog"]] = relationship(
-    #     back_populates="inspection",
-    #     cascade="all, delete-orphan"
-    # )
-    # submission: Mapped[Optional["Submission"]] = relationship(
-    #     back_populates="inspection",
-    #     uselist=False
-    # )
-    # report: Mapped[Optional["GeneratedReport"]] = relationship(
-    #     back_populates="inspection",
-    #     uselist=False
-    # )
+    # Relationships
+    checklist_responses: Mapped[list["InspectionChecklist"]] = relationship(
+        "InspectionChecklist",
+        back_populates="inspection",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+    evidence: Mapped[list["Evidence"]] = relationship(
+        "Evidence",
+        back_populates="inspection",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+    notes: Mapped[list["InspectionNote"]] = relationship(
+        "InspectionNote",
+        back_populates="inspection",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+    state_history: Mapped[list["InspectionStateHistory"]] = relationship(
+        "InspectionStateHistory",
+        back_populates="inspection",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+    location_logs: Mapped[list["InspectionLocationLog"]] = relationship(
+        "InspectionLocationLog",
+        back_populates="inspection",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+    submission: Mapped[Optional["Submission"]] = relationship(
+        "Submission",
+        back_populates="inspection",
+        uselist=False,
+        lazy="joined"
+    )
+    report: Mapped[Optional["GeneratedReport"]] = relationship(
+        "GeneratedReport",
+        back_populates="inspection",
+        uselist=False,
+        lazy="joined"
+    )
     
     # Table constraints
     __table_args__ = (

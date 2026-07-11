@@ -30,8 +30,8 @@ from ..schemas.evidence import (
     VerificationStatusResponse,
 )
 from ..schemas.common import PaginationParams
-from ..services.evidence_service import EvidenceService
-from ..database.session import get_db
+from ...services.evidence_service import EvidenceService
+from ...database.session import get_db
 
 
 router = APIRouter(prefix="/evidence", tags=["evidence"])

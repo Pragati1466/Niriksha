@@ -180,7 +180,7 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
     Returns:
         JSONResponse: Formatted error response
     """
-    request_id = request.state.get("request_id", generate_request_id())
+    request_id = getattr(request.state, "request_id", None) or generate_request_id()
     
     error_response = format_error_response(
         code=exc.code,
@@ -207,7 +207,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
     Returns:
         JSONResponse: Formatted error response
     """
-    request_id = request.state.get("request_id", generate_request_id())
+    request_id = getattr(request.state, "request_id", None) or generate_request_id()
     
     error_response = format_error_response(
         code="HTTP_ERROR",
@@ -233,7 +233,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     Returns:
         JSONResponse: Formatted error response
     """
-    request_id = request.state.get("request_id", generate_request_id())
+    request_id = getattr(request.state, "request_id", None) or generate_request_id()
     
     # Format validation errors
     validation_errors = []
@@ -269,7 +269,7 @@ async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError) -
     Returns:
         JSONResponse: Formatted error response
     """
-    request_id = request.state.get("request_id", generate_request_id())
+    request_id = getattr(request.state, "request_id", None) or generate_request_id()
     
     # Log the full traceback for debugging
     traceback.print_exc()
@@ -316,7 +316,7 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
     Returns:
         JSONResponse: Formatted error response
     """
-    request_id = request.state.get("request_id", generate_request_id())
+    request_id = getattr(request.state, "request_id", None) or generate_request_id()
     
     # Log the full traceback for debugging
     traceback.print_exc()

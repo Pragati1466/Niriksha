@@ -25,7 +25,7 @@ class NoteType:
     FOLLOW_UP = "follow_up"
     CLARIFICATION = "clarification"
     
-    ALL = [OBSERVATION, VIOLATION, GENERAL, FOLLOW_UP, CLARIFICATION]
+    ALL = (OBSERVATION, VIOLATION, GENERAL, FOLLOW_UP, CLARIFICATION)
 
 
 class NoteCreateRequest(BaseModel):
@@ -48,7 +48,7 @@ class NoteCreateRequest(BaseModel):
     
     @validator('severity')
     def validate_severity(cls, v):
-        if v is not None and v not in ["critical", "major", "minor"]:
+        if v is not None and v not in ("critical", "major", "minor"):
             raise ValueError("Severity must be critical, major, or minor")
         return v
     
