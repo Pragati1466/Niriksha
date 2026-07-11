@@ -25,11 +25,17 @@ export default function SignupPage() {
     setError('')
     setLoading(true)
 
+    if (!role) {
+      setError('Please select a role')
+      setLoading(false)
+      return
+    }
+
     try {
       await signup(name, email, password, role)
       router.push('/')
-    } catch (err) {
-      setError('Signup failed. Please try again.')
+    } catch (err: any) {
+      setError(err.message || 'Signup failed. Please try again.')
     } finally {
       setLoading(false)
     }
