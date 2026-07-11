@@ -11,6 +11,7 @@ import templateRoutes from './routes/templates'
 import reportRoutes from './routes/reports'
 import aiRoutes from './routes/ai'
 import agentRoutes from './routes/agents'
+import { setupSwagger } from './routes/swagger'
 
 dotenv.config()
 
@@ -21,7 +22,7 @@ console.log('Environment PORT:', process.env.PORT)
 console.log('Using PORT:', PORT)
 
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3002', 'http://127.0.0.1:3002'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -40,6 +41,9 @@ app.use('/api/templates', templateRoutes)
 app.use('/api/reports', reportRoutes)
 app.use('/api/ai', aiRoutes)
 app.use('/api/agents', agentRoutes)
+
+// Setup Swagger documentation
+setupSwagger(app)
 
 app.get('/', (req, res) => {
   res.json({ 
