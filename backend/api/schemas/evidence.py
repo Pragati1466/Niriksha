@@ -26,7 +26,7 @@ class EvidenceType:
     AUDIO = "audio"
     VIDEO = "video"
     
-    ALL = [PHOTO, DOCUMENT, AUDIO, VIDEO]
+    ALL = (PHOTO, DOCUMENT, AUDIO, VIDEO)
 
 
 class VerificationStatus:
@@ -36,7 +36,7 @@ class VerificationStatus:
     FLAGGED = "flagged"
     DISPUTED = "disputed"
     
-    ALL = [PENDING, VERIFIED, FLAGGED, DISPUTED]
+    ALL = (PENDING, VERIFIED, FLAGGED, DISPUTED)
 
 
 class EvidenceMetadataRequest(BaseModel):

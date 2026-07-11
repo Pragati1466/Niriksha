@@ -21,7 +21,7 @@ from contextlib import contextmanager
 # Database configuration from environment variables
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://user:password@localhost:5432/niriksha"
+    "postgresql://neondb_owner:npg_vK63Gtuhnxgq@ep-fancy-sun-at0eyl46.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require"
 )
 
 # Validate database URL is configured

@@ -24,9 +24,9 @@ from ..schemas.notes import (
     NoteListResponse,
 )
 from ..schemas.common import PaginationParams
-from ..repositories.base_repository import BaseRepository
-from ..database.models.note import InspectionNote
-from ..database.session import get_db
+from ...repositories.base_repository import BaseRepository
+from ...database.models.note import InspectionNote
+from ...database.session import get_db
 
 
 router = APIRouter(prefix="/notes", tags=["notes"])

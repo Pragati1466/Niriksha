@@ -24,7 +24,7 @@ class SyncActionType:
     DELETE = "delete"
     SYNC = "sync"
     
-    ALL = [CREATE, UPDATE, DELETE, SYNC]
+    ALL = (CREATE, UPDATE, DELETE, SYNC)
 
 
 class SyncStatus:
@@ -34,7 +34,7 @@ class SyncStatus:
     COMPLETED = "completed"
     FAILED = "failed"
     
-    ALL = [PENDING, IN_PROGRESS, COMPLETED, FAILED]
+    ALL = (PENDING, IN_PROGRESS, COMPLETED, FAILED)
 
 
 class SyncPushRequest(BaseModel):
@@ -51,7 +51,7 @@ class SyncPushRequest(BaseModel):
                         "action_type": "create",
                         "entity_type": "inspection_checklist",
                         "entity_id": "123e4567-e89b-12d3-a456-426614174000",
-                        "payload": {...},
+                        "payload": {"key": "value"},
                     }
                 ],
                 "last_sync_timestamp": "2026-07-15T09:00:00Z",
@@ -137,7 +137,7 @@ class ConflictResolutionRequest(BaseModel):
     
     @validator('resolution_action')
     def validate_resolution_action(cls, v):
-        if v not in ["keep_server", "keep_local", "merge"]:
+        if v not in ("keep_server", "keep_local", "merge"):
             raise ValueError("Resolution action must be keep_server, keep_local, or merge")
         return v
     

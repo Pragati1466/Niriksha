@@ -16,14 +16,14 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from pydantic import BaseModel
 
-from ..database.session import get_db
-from ..services.ai_integration_service import get_ai_service
-from ..services.evidence_service import EvidenceService
-from ..services.inspection_service import InspectionService
-from ..repositories.evidence_repository import EvidenceRepository
-from ..repositories.inspection_repository import InspectionRepository
-from ..repositories.checklist_repository import ChecklistRepository
-from ..api.middleware.logging import get_logger
+from ...database.session import get_db
+from ...services.ai_integration_service import get_ai_service
+from ...services.evidence_service import EvidenceService
+from ...services.inspection_service import InspectionService
+from ...repositories.evidence_repository import EvidenceRepository
+from ...repositories.inspection_repository import InspectionRepository
+from ...repositories.checklist_repository import ChecklistRepository
+from ..middleware.logging import get_logger
 
 logger = get_logger(__name__)
 

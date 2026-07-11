@@ -116,17 +116,17 @@ app.add_middleware(
 # ============================================================================
 
 # Add rate limiting middleware
-add_rate_limiting_middleware(app)
+# add_rate_limiting_middleware(app)
 
 # Add input sanitization middleware
-add_sanitization_middleware(app)
+# add_sanitization_middleware(app)
 
 # Add request ID middleware
 add_request_id_middleware(app)
 
 # Add request logging middleware
-request_logger = get_logger("request")
-app.add_middleware(RequestLoggingMiddleware, logger=request_logger)
+# request_logger = get_logger("request")
+# app.add_middleware(RequestLoggingMiddleware, logger=request_logger)
 
 # Register exception handlers
 register_exception_handlers(app)
@@ -231,7 +231,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         extra={
             "path": request.url.path,
             "method": request.method,
-            "request_id": request.state.get("request_id"),
+            "request_id": getattr(request.state, "request_id", None),
         },
         exc_info=True
     )
@@ -242,7 +242,7 @@ async def global_exception_handler(request: Request, exc: Exception):
             "error": {
                 "code": "INTERNAL_ERROR",
                 "message": "An unexpected error occurred",
-                "request_id": request.state.get("request_id"),
+                "request_id": getattr(request.state, "request_id", None),
             }
         },
     )

@@ -30,8 +30,8 @@ from ..schemas.inspection import (
     InspectionComplianceStatsResponse,
 )
 from ..schemas.common import PaginationParams, FilterParams
-from ..services.inspection_service import InspectionService
-from ..database.session import get_db
+from ...services.inspection_service import InspectionService
+from ...database.session import get_db
 
 
 router = APIRouter(prefix="/inspections", tags=["inspections"])

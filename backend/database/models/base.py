@@ -265,6 +265,7 @@ class BaseModel(Base, UUIDMixin, TimestampMixin):
             priority: Mapped[str] = mapped_column(String(20))
     """
     
+    __abstract__ = True
     pass
 
 
@@ -281,6 +282,7 @@ class AuditedModel(BaseModel, AuditMixin):
             content: Mapped[str] = mapped_column(Text)
     """
     
+    __abstract__ = True
     pass
 
 
@@ -298,6 +300,7 @@ class VersionedModel(BaseModel, VersionMixin):
             status: Mapped[str] = mapped_column(String(50))
     """
     
+    __abstract__ = True
     pass
 
 
@@ -314,6 +317,7 @@ class SoftDeleteModel(BaseModel, SoftDeleteMixin):
             name: Mapped[str] = mapped_column(String(255))
     """
     
+    __abstract__ = True
     pass
 
 
@@ -330,4 +334,5 @@ class FullModel(BaseModel, AuditMixin, VersionMixin, SoftDeleteMixin):
             status: Mapped[str] = mapped_column(String(50))
     """
     
+    __abstract__ = True
     pass

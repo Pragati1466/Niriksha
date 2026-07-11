@@ -15,7 +15,7 @@ Version: 1.0.0
 import logging
 import sys
 import json
-from typing import Any
+from typing import Any, Optional
 from datetime import datetime
 from pathlib import Path
 
@@ -71,17 +71,26 @@ class RequestLoggingMiddleware:
         self.app = app
         self.logger = logger
     
-    async def __call__(self, request: Request, call_next):
+    async def __call__(self, scope, receive, send):
         """
         Process request and log request/response details.
         
         Args:
-            request: FastAPI request
-            call_next: Next middleware/route handler
+            scope: ASGI scope
+            receive: ASGI receive callable
+            send: ASGI send callable
             
         Returns:
             Response: The response from the next handler
         """
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        
+        # Create request object for logging
+        from fastapi import Request
+        request = Request(scope, receive)
+        
         start_time = datetime.now()
         
         # Log request
@@ -94,30 +103,27 @@ class RequestLoggingMiddleware:
                 "query_params": str(request.query_params),
                 "client_ip": request.client.host if request.client else None,
                 "user_agent": request.headers.get("user-agent"),
-                "request_id": request.state.get("request_id"),
             }
         )
         
         # Process request
-        response = await call_next(request)
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                status_code = message["status"]
+                duration = (datetime.now() - start_time).total_seconds()
+                self.logger.info(
+                    "Outgoing response",
+                    extra={
+                        "event": "response",
+                        "status_code": status_code,
+                        "duration_ms": duration * 1000,
+                        "path": request.url.path,
+                        "method": request.method,
+                    }
+                )
+            await send(message)
         
-        # Calculate duration
-        duration = (datetime.now() - start_time).total_seconds()
-        
-        # Log response
-        self.logger.info(
-            "Outgoing response",
-            extra={
-                "event": "response",
-                "method": request.method,
-                "path": request.url.path,
-                "status_code": response.status_code,
-                "duration_ms": duration * 1000,
-                "request_id": request.state.get("request_id"),
-            }
-        )
-        
-        return response
+        await self.app(scope, receive, send_wrapper)
 
 
 def setup_logging(

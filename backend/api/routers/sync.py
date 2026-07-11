@@ -27,10 +27,10 @@ from ..schemas.sync import (
     ConflictResolutionRequest,
     ConflictResolutionResponse,
 )
-from ..repositories.base_repository import BaseRepository
-from ..database.models.offline_queue import InspectionOfflineQueue
-from ..database.models.sync_conflict import SyncConflict
-from ..database.session import get_db
+from ...repositories.base_repository import BaseRepository
+from ...database.models.offline_queue import InspectionOfflineQueue
+from ...database.models.sync_conflict import SyncConflict
+from ...database.session import get_db
 
 
 router = APIRouter(prefix="/sync", tags=["sync"])

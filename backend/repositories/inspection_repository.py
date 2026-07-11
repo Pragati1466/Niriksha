@@ -16,8 +16,8 @@ from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
 
-from sqlalchemy import and_, or_
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, or_, select
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from .base_repository import BaseRepository
 from ..database.models.inspection import Inspection, InspectionStatus, InspectionPriority
@@ -30,7 +30,70 @@ class InspectionRepository(BaseRepository[Inspection]):
     This repository provides methods for querying inspections by various
     criteria including inspector, site, status, priority, and date ranges.
     It also includes methods for compliance statistics and active inspections.
+    All queries use eager loading to prevent N+1 query problems.
     """
+    
+    def get_with_relations(self, inspection_id: UUID) -> Optional[Inspection]:
+        """
+        Get inspection by ID with all related entities loaded.
+        
+        Args:
+            inspection_id: ID of the inspection
+            
+        Returns:
+            Optional[Inspection]: Inspection with relations loaded
+        """
+        return self.db.execute(
+            select(Inspection)
+            .options(
+                selectinload(Inspection.checklist_responses),
+                selectinload(Inspection.evidence),
+                selectinload(Inspection.notes),
+                selectinload(Inspection.state_history),
+                selectinload(Inspection.location_logs),
+                joinedload(Inspection.submission),
+                joinedload(Inspection.report),
+            )
+            .where(Inspection.id == inspection_id)
+        ).scalar_one_or_none()
+    
+    def get_all_with_relations(
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        filters: Optional[dict] = None
+    ) -> List[Inspection]:
+        """
+        Get all inspections with relations loaded.
+        
+        Args:
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+            filters: Optional filters
+            
+        Returns:
+            List[Inspection]: List of inspections with relations
+        """
+        query = select(Inspection).options(
+            selectinload(Inspection.checklist_responses),
+            selectinload(Inspection.evidence),
+            selectinload(Inspection.notes),
+            joinedload(Inspection.submission),
+        )
+        
+        if filters:
+            for key, value in filters.items():
+                if isinstance(value, dict):
+                    # Handle range filters
+                    if "$gte" in value:
+                        query = query.where(getattr(Inspection, key) >= value["$gte"])
+                    if "$lte" in value:
+                        query = query.where(getattr(Inspection, key) <= value["$lte"])
+                else:
+                    query = query.where(getattr(Inspection, key) == value)
+        
+        query = query.offset(skip).limit(limit)
+        return list(self.db.execute(query).scalars().all())
     
     def find_by_inspector(
         self,
@@ -55,7 +118,7 @@ class InspectionRepository(BaseRepository[Inspection]):
         if status:
             filters["status"] = status
         
-        return self.get_all(skip=skip, limit=limit, filters=filters)
+        return self.get_all_with_relations(skip=skip, limit=limit, filters=filters)
     
     def find_by_site(
         self,
@@ -80,7 +143,7 @@ class InspectionRepository(BaseRepository[Inspection]):
         if status:
             filters["status"] = status
         
-        return self.get_all(skip=skip, limit=limit, filters=filters)
+        return self.get_all_with_relations(skip=skip, limit=limit, filters=filters)
     
     def find_by_status(
         self,
@@ -99,7 +162,7 @@ class InspectionRepository(BaseRepository[Inspection]):
         Returns:
             List[Inspection]: List of inspections
         """
-        return self.get_all(skip=skip, limit=limit, filters={"status": status})
+        return self.get_all_with_relations(skip=skip, limit=limit, filters={"status": status})
     
     def find_by_date_range(
         self,
@@ -123,7 +186,7 @@ class InspectionRepository(BaseRepository[Inspection]):
         filters = {
             "scheduled_date": {"$gte": start_date, "$lte": end_date}
         }
-        return self.get_all(skip=skip, limit=limit, filters=filters)
+        return self.get_all_with_relations(skip=skip, limit=limit, filters=filters)
     
     def find_active_inspections(
         self,
@@ -142,11 +205,18 @@ class InspectionRepository(BaseRepository[Inspection]):
         Returns:
             List[Inspection]: List of active inspections
         """
-        filters = {"status": InspectionStatus.active()}
-        if inspector_id:
-            filters["inspector_id"] = inspector_id
+        query = select(Inspection).where(
+            Inspection.status.in_(InspectionStatus.active())
+        ).options(
+            selectinload(Inspection.checklist_responses),
+            selectinload(Inspection.evidence),
+        )
         
-        return self.get_all(skip=skip, limit=limit, filters=filters)
+        if inspector_id:
+            query = query.where(Inspection.inspector_id == inspector_id)
+        
+        query = query.offset(skip).limit(limit)
+        return list(self.db.execute(query).scalars().all())
     
     def find_overdue_inspections(
         self,
@@ -165,9 +235,20 @@ class InspectionRepository(BaseRepository[Inspection]):
         Returns:
             List[Inspection]: List of overdue inspections
         """
-        # This would require date comparison in the query
-        # For now, return active inspections (filtering in application layer)
-        return self.find_active_inspections(inspector_id, skip, limit)
+        query = select(Inspection).where(
+            and_(
+                Inspection.scheduled_date < datetime.now(),
+                Inspection.status.in_(InspectionStatus.active())
+            )
+        ).options(
+            selectinload(Inspection.checklist_responses),
+        )
+        
+        if inspector_id:
+            query = query.where(Inspection.inspector_id == inspector_id)
+        
+        query = query.offset(skip).limit(limit)
+        return list(self.db.execute(query).scalars().all())
     
     def find_by_priority(
         self,
@@ -192,7 +273,7 @@ class InspectionRepository(BaseRepository[Inspection]):
         if status:
             filters["status"] = status
         
-        return self.get_all(skip=skip, limit=limit, filters=filters)
+        return self.get_all_with_relations(skip=skip, limit=limit, filters=filters)
     
     def get_compliance_stats(self, inspector_id: UUID) -> dict:
         """
@@ -233,7 +314,7 @@ class InspectionRepository(BaseRepository[Inspection]):
             dict: Status counts
         """
         try:
-            all_inspections = self.get_all(limit=1000)  # Get all for stats
+            all_inspections = self.get_all_with_relations(limit=1000)
             status_counts = {}
             
             for status in InspectionStatus.all():

@@ -31,7 +31,7 @@ class InspectionStatus:
     COMPLETED = "completed"
     CANCELLED = "cancelled"
     
-    ALL = [DRAFT, IN_PROGRESS, EVIDENCE_COLLECTION, REVIEW, SUBMITTED, UNDER_REVIEW, COMPLETED, CANCELLED]
+    ALL = (DRAFT, IN_PROGRESS, EVIDENCE_COLLECTION, REVIEW, SUBMITTED, UNDER_REVIEW, COMPLETED, CANCELLED)
 
 
 class InspectionPriority:
@@ -41,7 +41,7 @@ class InspectionPriority:
     HIGH = "high"
     URGENT = "urgent"
     
-    ALL = [LOW, MEDIUM, HIGH, URGENT]
+    ALL = (LOW, MEDIUM, HIGH, URGENT)
 
 
 # ============================================================================

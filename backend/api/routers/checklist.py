@@ -26,8 +26,8 @@ from ..schemas.checklist import (
     ChecklistFullTemplateResponse,
 )
 from ..schemas.common import PaginationParams
-from ..services.checklist_service import ChecklistService
-from ..database.session import get_db
+from ...services.checklist_service import ChecklistService
+from ...database.session import get_db
 
 
 router = APIRouter(prefix="/checklists", tags=["checklists"])
