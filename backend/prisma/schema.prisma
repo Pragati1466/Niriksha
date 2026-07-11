@@ -1,0 +1,191 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  name          String
+  role          String    @default("INSPECTOR")
+  departmentId  String?
+  department    Department? @relation(fields: [departmentId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  assignedInspections Inspection[] @relation("AssignedInspector")
+  reviews       Review[]
+  
+  @@index([email])
+  @@index([role])
+  @@index([departmentId])
+  @@index([role, departmentId])
+}
+
+model Department {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  users       User[]
+  sites       Site[]
+  templates   InspectionTemplate[]
+  
+  @@index([name])
+}
+
+model Site {
+  id            String    @id @default(uuid())
+  name          String
+  address       String
+  departmentId  String
+  department    Department @relation(fields: [departmentId], references: [id])
+  latitude      Float?
+  longitude     Float?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  inspections   Inspection[]
+  
+  @@index([departmentId])
+}
+
+model InspectionTemplate {
+  id            String    @id @default(uuid())
+  name          String
+  description   String?
+  departmentId  String
+  department    Department @relation(fields: [departmentId], references: [id])
+  checklistItems String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  inspections   Inspection[]
+  
+  @@index([departmentId])
+}
+
+model Inspection {
+  id              String            @id @default(uuid())
+  siteId          String
+  site            Site              @relation(fields: [siteId], references: [id])
+  inspectorId     String
+  inspector       User              @relation("AssignedInspector", fields: [inspectorId], references: [id])
+  templateId      String
+  template        InspectionTemplate @relation(fields: [templateId], references: [id])
+  status          String            @default("ASSIGNED")
+  scheduledDate   DateTime
+  completedDate   DateTime?
+  notes           String?
+  confidenceScore Float?
+  aiAnalysis      String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  
+  images          InspectionImage[]
+  checklists      InspectionChecklist[]
+  violations      Violation[]
+  reports         Report[]
+  reviews         Review[]
+  
+  @@index([inspectorId])
+  @@index([siteId])
+  @@index([templateId])
+  @@index([status])
+  @@index([status, scheduledDate])
+  @@index([inspectorId, status])
+  @@index([scheduledDate])
+  @@index([createdAt])
+}
+
+model InspectionImage {
+  id            String    @id @default(uuid())
+  inspectionId  String
+  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  imageUrl      String
+  description   String?
+  uploadedAt    DateTime  @default(now())
+  
+  @@index([inspectionId])
+}
+
+model InspectionChecklist {
+  id            String    @id @default(uuid())
+  inspectionId  String
+  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  itemId        String
+  itemLabel     String
+  status        String    @default("PENDING")
+  notes         String?
+  evidence      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([inspectionId])
+  @@index([inspectionId, status])
+  @@index([itemId])
+}
+
+model Violation {
+  id            String    @id @default(uuid())
+  inspectionId  String
+  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  description   String
+  severity      String
+  checklistItemId String?
+  imageEvidence String?
+  status        String    @default("OPEN")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([inspectionId])
+  @@index([severity])
+  @@index([inspectionId, severity])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Report {
+  id            String    @id @default(uuid())
+  inspectionId  String    @unique
+  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  pdfUrl       String?
+  summary       String?
+  generatedAt   DateTime  @default(now())
+  
+  @@index([inspectionId])
+}
+
+model Review {
+  id            String    @id @default(uuid())
+  inspectionId  String
+  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  reviewerId    String
+  reviewer      User      @relation(fields: [reviewerId], references: [id])
+  approved      Boolean?
+  comments      String?
+  reviewedAt    DateTime  @default(now())
+  
+  @@index([inspectionId])
+  @@index([reviewerId])
+  @@index([reviewerId, reviewedAt])
+  @@index([approved])
+}
+
+model TrustScore {
+  id            String    @id @default(uuid())
+  inspectorId   String    @unique
+  score         Float     @default(100)
+  totalInspections Int    @default(0)
+  flaggedInspections Int  @default(0)
+  lastUpdated   DateTime  @default(now())
+  
+  @@index([inspectorId])
+}

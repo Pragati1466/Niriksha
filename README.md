@@ -1,231 +1,265 @@
-# NIRIKSHA
+# NIRIKSHA - AI-Powered Inspection Intelligence Platform
 
-**Smarter Inspections. Safer Communities. Trusted Decisions.**
-
-## Project Overview
-
-NIRIKSHA is an AI-powered inspection intelligence platform that helps government departments prioritize inspections, verify evidence, and make risk-informed regulatory decisions. Unlike conventional inspection management systems that digitize paperwork, NIRIKSHA introduces an AI decision-support layer that augments inspectors with specialized agents for risk analysis, route optimization, evidence validation, automated reporting, and pattern detection.
-
-**Why it was built:**
-- Government departments struggle to identify high-risk establishments with limited inspector capacity
-- Existing digital portals store data but lack predictive decision support
-- Manual inspection prioritization leads to inefficient resource allocation
-- Cross-case intelligence and emerging safety patterns are identified too late
-
-**Problem solved:**
-- Transforms inspection data into actionable regulatory intelligence
-- Enables risk-based inspection prioritization using historical data and AI
-- Reduces administrative burden through automated report generation
-- Improves evidence quality through AI-powered verification
-- Maintains human oversight with explainable AI recommendations
-
-## Key Features
-
-- **Risk Prioritization Agent** - Identifies establishments requiring urgent inspection using historical violations, complaints, and risk indicators
-- **Route Planning Agent** - Optimizes inspector schedules based on location, urgency, travel time, and workload
-- **Evidence Verification Agent** - Flags inconsistencies between inspection findings and uploaded images/documents
-- **Report Generation Agent** - Drafts inspection reports aligned with department templates automatically
-- **Pattern Detection Agent** - Detects recurring violations, geographic clusters, and emerging regulatory risks
-- **Regulatory Knowledge Agent** - Retrieves department-specific rules and compliance guidance during inspections
-- **Offline-first mobile app** - Supports remote inspections with automatic sync
-- **GPS-based check-in/out** - Geofencing and location tracking for accountability
-- **Comprehensive audit trails** - State transition history and user action logging
-- **Multi-department architecture** - Configurable across food safety, healthcare, fire safety, pollution control, and construction
-
-## System Architecture
-
-```mermaid
-graph TB
-    subgraph "Frontend Layer"
-        MobileApp[Mobile App]
-        WebApp[Web Dashboard]
-    end
-    
-    subgraph "API Gateway"
-        API[FastAPI Gateway]
-        Auth[JWT Auth]
-        RateLimit[Rate Limiter]
-        Sanitize[Input Sanitization]
-    end
-    
-    subgraph "Service Layer"
-        InspectionSvc[Inspection Service]
-        EvidenceSvc[Evidence Service]
-        ChecklistSvc[Checklist Service]
-        SyncSvc[Sync Service]
-    end
-    
-    subgraph "AI Layer"
-        RiskAgent[Risk Prioritization]
-        RouteAgent[Route Planning]
-        VerifyAgent[Evidence Verification]
-        ReportAgent[Report Generation]
-        PatternAgent[Pattern Detection]
-        RegulatoryAgent[Regulatory Knowledge]
-    end
-    
-    subgraph "Data Layer"
-        PostgreSQL[(PostgreSQL)]
-        Redis[(Redis Cache)]
-        S3[(S3 Storage)]
-    end
-    
-    MobileApp --> API
-    WebApp --> API
-    API --> Auth
-    API --> RateLimit
-    API --> Sanitize
-    API --> InspectionSvc
-    API --> EvidenceSvc
-    API --> ChecklistSvc
-    API --> SyncSvc
-    
-    InspectionSvc --> RiskAgent
-    InspectionSvc --> RouteAgent
-    InspectionSvc --> ReportAgent
-    EvidenceSvc --> VerifyAgent
-    InspectionSvc --> PatternAgent
-    InspectionSvc --> RegulatoryAgent
-    
-    InspectionSvc --> PostgreSQL
-    EvidenceSvc --> PostgreSQL
-    ChecklistSvc --> PostgreSQL
-    SyncSvc --> PostgreSQL
-    
-    InspectionSvc --> Redis
-    EvidenceSvc --> S3
-    RiskAgent --> PostgreSQL
-    PatternAgent --> PostgreSQL
-```
-
-**Architecture explanation:** The platform follows a layered architecture with a React-based frontend communicating through a FastAPI gateway. The API layer handles authentication, rate limiting, and input sanitization before routing requests to domain services. Specialized AI agents operate as independent services that can be invoked by domain services for intelligent decision support. Data is stored in PostgreSQL with Redis caching for performance and S3 for file storage.
-
-## AI Agents
-
-- **Risk Prioritization Agent** - Analyzes historical violations, complaints, licensing data, and previous inspection outcomes to recommend high-priority establishments for inspection
-- **Route Planning Agent** - Optimizes inspector daily schedules by considering location clusters, urgency levels, travel time, and workload distribution
-- **Evidence Verification Agent** - Uses computer vision to validate uploaded photographs against recorded observations, flagging inconsistencies for human review
-- **Report Generation Agent** - Automatically drafts structured inspection reports with applicable regulatory provisions and recommendations
-- **Pattern Detection Agent** - Identifies recurring violations across jurisdictions, geographic clusters of non-compliance, and emerging regulatory risks
-- **Regulatory Knowledge Agent** - Provides instant access to department-specific rules, standards, and compliance guidance during field inspections
+NIRIKSHA is a production-ready web application for government and institutional inspections, featuring AI-powered reality verification using Gemini 2.5 Flash and LangGraph.
 
 ## Tech Stack
 
-| Component | Technology |
-|-----------|-----------|
-| Backend Framework | FastAPI 0.104.1 |
-| Database | PostgreSQL 14 |
-| ORM | SQLAlchemy 2.0.23 |
-| Authentication | JWT (python-jose) |
-| Frontend Framework | React 18 with Vite |
-| State Management | Zustand |
-| Data Fetching | TanStack Query |
-| Styling | TailwindCSS |
-| UI Components | Radix UI |
-| Task Queue | Celery with Redis |
-| File Storage | AWS S3 |
-| Containerization | Docker & Docker Compose |
-| API Documentation | Swagger UI / ReDoc |
+### Frontend
+- **Framework**: Next.js 15 with App Router
+- **Language**: TypeScript
+- **Styling**: TailwindCSS
+- **UI Components**: shadcn/ui (Radix UI primitives)
+- **Icons**: Lucide React
+- **State Management**: React Context API
 
-## Workflow
+### Backend
+- **Runtime**: Node.js
+- **Framework**: Express
+- **Language**: TypeScript
+- **ORM**: Prisma
+- **Database**: PostgreSQL
+- **Authentication**: JWT (jsonwebtoken)
+- **File Upload**: Multer
+- **PDF Generation**: PDFKit
+- **AI Integration**: 
+  - Google Gemini 2.5 Flash (@google/generative-ai)
+  - LangGraph for reality verification
 
-```mermaid
-graph LR
-    A[Schedule Inspection] --> B[Inspector Check-in]
-    B --> C[Conduct Inspection]
-    C --> D[Collect Evidence]
-    D --> E[Complete Checklist]
-    E --> F[AI Evidence Verification]
-    F --> G[AI Report Generation]
-    G --> H[Inspector Review]
-    H --> I[Submit Report]
-    I --> J[Supervisor Approval]
-    J --> K[AI Pattern Detection]
-    K --> L[Risk Prioritization Update]
+## Features
+
+### Role-Based Access Control
+- **Inspector**: Conduct inspections, upload evidence, complete checklists
+- **Supervisor**: Review inspections, manage inspector trust scores, view analytics
+- **Admin**: Manage users, departments, templates, and system settings
+
+### Key Capabilities
+- Multi-step inspection workflow with AI verification
+- Image upload and AI-powered evidence analysis
+- Checklist completion with compliance tracking
+- Violation reporting and severity classification
+- PDF report generation
+- Real-time dashboard analytics
+- Inspector trust score tracking
+- Dark mode support
+
+## Project Structure
+
+```
+niriksha/
+├── frontend/                 # Next.js frontend application
+│   ├── src/
+│   │   ├── app/             # Next.js app directory
+│   │   │   ├── auth/        # Authentication pages
+│   │   │   ├── dashboards/  # Role-specific dashboards
+│   │   │   ├── globals.css  # Global styles
+│   │   │   ├── layout.tsx   # Root layout
+│   │   │   └── page.tsx     # Home page
+│   │   ├── components/
+│   │   │   ├── shared/      # Shared components (Header, ThemeProvider)
+│   │   │   └── ui/          # shadcn/ui components
+│   │   ├── contexts/        # React contexts (AuthContext)
+│   │   ├── lib/             # Utility functions
+│   │   └── types/           # TypeScript type definitions
+│   ├── package.json
+│   ├── tsconfig.json
+│   ├── tailwind.config.js
+│   ├── next.config.js
+│   └── .env.local
+│
+└── backend/                  # Express backend application
+    ├── src/
+    │   ├── controllers/     # Route controllers
+    │   ├── middleware/      # Custom middleware (auth)
+    │   ├── routes/          # API routes
+    │   ├── utils/           # Utilities (Prisma client)
+    │   └── index.ts         # Server entry point
+    ├── prisma/
+    │   └── schema.prisma    # Database schema
+    ├── uploads/             # Uploaded files
+    ├── package.json
+    ├── tsconfig.json
+    └── .env
 ```
 
-**Flow explanation:** Inspections begin with scheduling based on AI risk prioritization. Inspectors check in at the site using GPS verification, conduct the inspection following standardized checklists, and collect evidence (photos, documents). AI agents verify evidence consistency and draft reports automatically. Inspectors review and submit reports for supervisor approval. After approval, AI pattern detection analyzes data to update risk prioritization for future inspections.
+## Database Schema
 
-## Installation
+The application uses PostgreSQL with the following main entities:
+- **User**: System users with roles (Inspector, Supervisor, Admin)
+- **Department**: Organizational departments
+- **Site**: Inspection locations
+- **InspectionTemplate**: Checklist templates for inspections
+- **Inspection**: Individual inspection records
+- **InspectionImage**: Evidence images uploaded during inspections
+- **InspectionChecklist**: Checklist item completion status
+- **Violation**: Recorded violations with severity
+- **Report**: Generated inspection reports
+- **Review**: Supervisor reviews of inspections
+- **TrustScore**: Inspector performance metrics
+
+## Setup Instructions
 
 ### Prerequisites
-- Python 3.11+
-- Node.js 18+
+- Node.js 18+ 
 - PostgreSQL 14+
-- Redis
-- Docker (optional)
+- npm or yarn
 
 ### Backend Setup
+
+1. Navigate to the backend directory:
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env
-# Configure DATABASE_URL, JWT_SECRET_KEY, ALLOWED_ORIGINS in .env
-psql -U user -d niriksha -f database/migrations/001_create_inspection_tables.sql
-uvicorn api.main:app --reload
-`` API runs on http://localhost:8000
+```
 
-### Frontend Setup
+2. Install dependencies:
 ```bash
-cd frontend
 npm install
-cp .env.example .env
-# Configure VITE_API_URL in .env
+```
+
+3. Set up environment variables in `.env`:
+```env
+DATABASE_URL="postgresql://user:password@localhost:5432/niriksha"
+JWT_SECRET="your-secret-key"
+JWT_EXPIRES_IN="7d"
+GEMINI_API_KEY="your-gemini-api-key"
+PORT=5000
+```
+
+4. Run Prisma migrations:
+```bash
+npx prisma migrate dev --name init
+```
+
+5. Generate Prisma client:
+```bash
+npx prisma generate
+```
+
+6. Start the backend server:
+```bash
 npm run dev
 ```
-Frontend runs on http://localhost:5173
 
-### Login Credentials (Demo Mode)
+The backend API will run on `http://localhost:5000`
 
-The application currently uses synthetic data for testing. You can login using the following credentials:
+### Frontend Setup
 
-**Valid Credentials:**
-- **Inspector:** `inspector@niriksha.gov` / `inspector123`
-- **Admin:** `admin@niriksha.gov` / `admin123`
-- **Demo:** `demo@niriksha.gov` / `demo123`
-
-**Alternative - Demo Mode:**
-Click the "Try Demo Mode" button on the login page to access the application without credentials.
-
-**Testing Instructions:**
-1. **Correct Login:** Use valid credentials → Redirects to Dashboard
-2. **Wrong Password:** Use invalid password → Shows "Invalid credentials" error
-3. **Session Persistence:** Login and refresh page → User stays logged in (JWT stored in localStorage)
-4. **Logout:** Click logout button → Redirected to Login page
-
-**Note:** The application currently uses synthetic data generation (50+ pre-generated inspections, 100+ evidence files) for testing purposes. Real backend integration with FastAPI and PostgreSQL is pending.
-
-### Docker Setup
+1. Navigate to the frontend directory:
 ```bash
-cd backend
-docker-compose up --build
+cd frontend
 ```
 
-## Future Scope
+2. Install dependencies:
+```bash
+npm install
+```
 
-- Multi-department expansion beyond food safety to healthcare, fire safety, pollution control
-- Integration with existing government portals (FoSCoS, FoSCoRIS) via APIs
-- Advanced computer vision for automated violation detection from images
-- Voice-to-text for hands-free note-taking during inspections
-- Predictive analytics for forecasting compliance trends
-- Mobile app with offline-first capabilities for remote areas
+3. Set up environment variables in `.env.local`:
+```env
+NEXT_PUBLIC_API_URL="http://localhost:5000"
+```
 
-## Screenshots
+4. Start the development server:
+```bash
+npm run dev
+```
 
-<!-- 
-[Dashboard Screenshot]
-[Mobile App Screenshot]
-[AI Report Generation Screenshot]
-[Risk Prioritization Dashboard Screenshot]
--->
+The frontend will run on `http://localhost:3000`
+
+## API Endpoints
+
+### Authentication
+- `POST /api/auth/signup` - Register new user
+- `POST /api/auth/login` - Login user
+
+### Inspections
+- `GET /api/inspections` - Get all inspections (filtered by role)
+- `GET /api/inspections/:id` - Get inspection details
+- `POST /api/inspections` - Create new inspection (Admin/Supervisor)
+- `PUT /api/inspections/:id` - Update inspection
+- `POST /api/inspections/:id/images` - Upload inspection image
+- `PUT /api/inspections/:id/checklist` - Update checklist
+- `POST /api/inspections/:id/violations` - Create violation
+
+### Users
+- `GET /api/users` - Get all users (Admin)
+- `GET /api/users/:id` - Get user details
+
+### Departments
+- `GET /api/departments` - Get all departments
+- `POST /api/departments` - Create department (Admin)
+
+### Sites
+- `GET /api/sites` - Get all sites
+- `POST /api/sites` - Create site (Admin)
+
+### Templates
+- `GET /api/templates` - Get all templates
+- `POST /api/templates` - Create template (Admin)
+
+### Reports
+- `GET /api/reports/:inspectionId` - Get inspection report
+- `POST /api/reports/:inspectionId` - Generate PDF report
+
+### AI
+- `POST /api/ai/verify-reality` - AI verification of checklist vs images
+- `POST /api/ai/analyze-image` - Analyze single image
+
+## Usage
+
+1. **Register**: Create an account via the signup page
+2. **Login**: Authenticate with your credentials
+3. **Navigate**: Based on your role, you'll be redirected to the appropriate dashboard
+4. **Inspect** (Inspector): 
+   - View assigned inspections
+   - Complete checklists
+   - Upload evidence images
+   - Submit for AI verification
+5. **Review** (Supervisor):
+   - Review submitted inspections
+   - Approve or reject inspections
+   - Monitor inspector performance
+6. **Manage** (Admin):
+   - Create and manage users
+   - Manage departments and sites
+   - Configure inspection templates
+   - System settings
+
+## AI Verification
+
+The application uses Gemini 2.5 Flash for AI-powered reality verification:
+- Analyzes uploaded images against checklist claims
+- Detects inconsistencies between reported status and visual evidence
+- Provides confidence scores and flags suspicious items
+- Helps supervisors identify potential fraud or errors
+
+## Development
+
+### Running Tests
+```bash
+# Backend
+cd backend
+npm test
+
+# Frontend
+cd frontend
+npm test
+```
+
+### Building for Production
+```bash
+# Backend
+cd backend
+npm run build
+
+# Frontend
+cd frontend
+npm run build
+```
 
 ## License
 
-Proprietary - All rights reserved. Government use only.
+This project is proprietary and confidential.
 
----
+## Support
 
-Built for IBM Hackathon 2026 - Government Inspection Intelligence Challenge.
-
+For issues and questions, please contact the development team.
