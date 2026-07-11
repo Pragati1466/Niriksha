@@ -24,7 +24,7 @@ export class NotificationService {
     metadata?: any
   }): Promise<Notification> {
     try {
-      const notification = await prisma.notification.create({
+      const notification = await (prisma as any).notification.create({
         data: {
           userId: data.userId,
           type: data.type,
@@ -65,7 +65,7 @@ export class NotificationService {
         where.read = false
       }
 
-      const notifications = await prisma.notification.findMany({
+      const notifications = await (prisma as any).notification.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         take: options?.limit || 50,
@@ -92,7 +92,7 @@ export class NotificationService {
   // Mark notification as read
   async markAsRead(notificationId: string): Promise<void> {
     try {
-      await prisma.notification.update({
+      await (prisma as any).notification.update({
         where: { id: notificationId },
         data: { read: true },
       })
@@ -105,7 +105,7 @@ export class NotificationService {
   // Mark all notifications as read for user
   async markAllAsRead(userId: string): Promise<void> {
     try {
-      await prisma.notification.updateMany({
+      await (prisma as any).notification.updateMany({
         where: { userId, read: false },
         data: { read: true },
       })
@@ -118,7 +118,7 @@ export class NotificationService {
   // Delete notification
   async deleteNotification(notificationId: string): Promise<void> {
     try {
-      await prisma.notification.delete({
+      await (prisma as any).notification.delete({
         where: { id: notificationId },
       })
     } catch (error) {
@@ -130,7 +130,7 @@ export class NotificationService {
   // Get unread count
   async getUnreadCount(userId: string): Promise<number> {
     try {
-      const count = await prisma.notification.count({
+      const count = await (prisma as any).notification.count({
         where: { userId, read: false },
       })
       return count
@@ -228,9 +228,9 @@ export class NotificationService {
   // Get notification statistics
   async getNotificationStats(userId: string) {
     const [total, unread, byType] = await Promise.all([
-      prisma.notification.count({ where: { userId } }),
-      prisma.notification.count({ where: { userId, read: false } }),
-      prisma.notification.groupBy({
+      (prisma as any).notification.count({ where: { userId } }),
+      (prisma as any).notification.count({ where: { userId, read: false } }),
+      (prisma as any).notification.groupBy({
         by: ['type'],
         where: { userId },
         _count: true,
@@ -251,7 +251,7 @@ export class NotificationService {
   async cleanupOldNotifications(daysOld: number = 90): Promise<number> {
     const cutoffDate = new Date(Date.now() - daysOld * 24 * 60 * 60 * 1000)
 
-    const result = await prisma.notification.deleteMany({
+    const result = await (prisma as any).notification.deleteMany({
       where: {
         createdAt: { lt: cutoffDate },
         read: true,
