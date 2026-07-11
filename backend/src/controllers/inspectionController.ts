@@ -1,6 +1,9 @@
 import { Response } from 'express'
 import { AuthRequest } from '../middleware/auth'
 import prisma from '../utils/prisma'
+import { agentOrchestrator } from '../agents/orchestrator'
+import { AgentState, Inconsistency } from '../agents/types'
+import { complianceMemory } from '../services/complianceMemory'
 
 export const getInspections = async (req: AuthRequest, res: Response) => {
   try {
@@ -55,6 +58,7 @@ export const getInspectionById = async (req: AuthRequest, res: Response) => {
         violations: true,
         reports: true,
         reviews: true,
+        verificationFindings: true,
       },
     })
 
@@ -100,6 +104,10 @@ export const updateInspection = async (req: AuthRequest, res: Response) => {
     const { id } = req.params
     const { status, notes, confidenceScore, aiAnalysis } = req.body
 
+    if (status === 'SUBMITTED') {
+      return submitInspection(req, res)
+    }
+
     const inspection = await prisma.inspection.update({
       where: { id },
       data: {
@@ -120,6 +128,129 @@ export const updateInspection = async (req: AuthRequest, res: Response) => {
   } catch (error) {
     console.error('Update inspection error:', error)
     res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+export const submitInspection = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params
+    const overrideReason = typeof req.body.overrideReason === 'string' ? req.body.overrideReason.trim() : ''
+    const inspection = await prisma.inspection.findUnique({
+      where: { id },
+      include: { checklists: true, images: true },
+    })
+
+    if (!inspection) return res.status(404).json({ error: 'Inspection not found' })
+    if (req.user?.role === 'INSPECTOR' && inspection.inspectorId !== req.user.id) {
+      return res.status(403).json({ error: 'Inspectors can only submit their own inspections' })
+    }
+
+    if (overrideReason) {
+      if (inspection.status !== 'HOLD_FOR_REVIEW') {
+        return res.status(409).json({ error: 'An override is only allowed for an inspection on hold' })
+      }
+
+      const submitted = await prisma.inspection.update({
+        where: { id },
+        data: {
+          status: 'SUBMITTED',
+          completedDate: new Date(),
+          submissionOverrideReason: overrideReason,
+          submissionOverriddenAt: new Date(),
+        },
+      })
+      await complianceMemory.recordInspectionOutcome({
+        inspectionId: inspection.id,
+        actorId: req.user!.id,
+        action: 'SUBMISSION_OVERRIDE',
+        reason: overrideReason,
+      })
+      return res.json({ success: true, status: 'SUBMITTED', overridden: true, inspection: submitted })
+    }
+
+    await complianceMemory.recordVerificationStarted(inspection.id, req.user!.id)
+
+    const state: AgentState = {
+      inspectionId: inspection.id,
+      inspectorId: inspection.inspectorId,
+      checklist: inspection.checklists.map(item => ({
+        id: item.id,
+        label: item.itemLabel,
+        status: item.status as 'COMPLIANT' | 'NON_COMPLIANT' | 'NOT_APPLICABLE',
+        required: true,
+        notes: item.notes || undefined,
+      })),
+      images: inspection.images.map(image => ({
+        id: image.id,
+        url: image.imageUrl,
+        description: image.description || '',
+        timestamp: image.uploadedAt,
+      })),
+      currentAgent: '', errors: [], retryCount: 0, maxRetries: 3, results: {},
+    }
+    const verificationState = await agentOrchestrator.executeAgent('reality-verification', state)
+    const verification = verificationState.results?.realityVerification
+    const findings: Inconsistency[] = verification?.inconsistencies || [{
+      checklistItemId: null as any,
+      checklistLabel: 'Verification system',
+      claimedStatus: 'UNKNOWN',
+      detectedStatus: 'UNKNOWN',
+      confidence: 0,
+      reasoning: 'Unable to complete reality verification',
+      severity: 'CRITICAL',
+    }]
+    const mustHold = !verification || !verification.verified || verification.confidenceScore < 70 || findings.some(f =>
+      f.detectedStatus === 'NON_COMPLIANT' || f.detectedStatus === 'UNKNOWN' || f.confidence < 0.7
+    )
+
+    if (mustHold) {
+      await prisma.$transaction([
+        prisma.verificationFinding.createMany({
+          data: findings.map(finding => ({
+            inspectionId: inspection.id,
+            checklistItemId: finding.checklistItemId || null,
+            checklistLabel: finding.checklistLabel,
+            finding: finding.reasoning,
+            confidence: finding.confidence,
+            evidenceReference: finding.evidenceReference || null,
+          })),
+        }),
+        prisma.inspection.update({
+          where: { id },
+          data: { status: 'HOLD_FOR_REVIEW', completedDate: null, confidenceScore: verification?.confidenceScore || 0, aiAnalysis: verification?.explanation || 'Unable to complete reality verification' },
+        }),
+      ])
+      await complianceMemory.recordInspectionOutcome({
+        inspectionId: inspection.id,
+        actorId: req.user!.id,
+        action: 'HOLD_FOR_REVIEW',
+        verification,
+        findings,
+      })
+      return res.status(409).json({
+        success: false,
+        status: 'HOLD_FOR_REVIEW',
+        message: 'Submission blocked pending review or inspector override',
+        confidenceScore: verification?.confidenceScore || 0,
+        findings,
+      })
+    }
+
+    const submitted = await prisma.inspection.update({
+      where: { id },
+      data: { status: 'SUBMITTED', completedDate: new Date(), confidenceScore: verification.confidenceScore, aiAnalysis: verification.explanation, submissionOverrideReason: null, submissionOverriddenAt: null },
+    })
+    await complianceMemory.recordInspectionOutcome({
+      inspectionId: inspection.id,
+      actorId: req.user!.id,
+      action: 'SUBMITTED',
+      verification,
+      findings,
+    })
+    return res.json({ success: true, status: 'SUBMITTED', overridden: false, inspection: submitted })
+  } catch (error) {
+    console.error('Submit inspection error:', error)
+    return res.status(500).json({ error: 'Failed to submit inspection' })
   }
 }
 
@@ -177,6 +308,8 @@ export const updateChecklist = async (req: AuthRequest, res: Response) => {
     const updatedChecklists = await prisma.inspectionChecklist.findMany({
       where: { inspectionId },
     })
+
+    await complianceMemory.recordCorrections(inspectionId, req.user!.id, updatedChecklists)
 
     res.json(updatedChecklists)
   } catch (error) {

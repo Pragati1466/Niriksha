@@ -20,6 +20,7 @@ model User {
   
   assignedInspections Inspection[] @relation("AssignedInspector")
   reviews       Review[]
+  complianceMemoryEvents ComplianceMemoryEvent[]
   
   @@index([email])
   @@index([role])
@@ -53,6 +54,7 @@ model Site {
   updatedAt     DateTime  @updatedAt
   
   inspections   Inspection[]
+  complianceMemoryEvents ComplianceMemoryEvent[]
   
   @@index([departmentId])
 }
@@ -86,6 +88,8 @@ model Inspection {
   notes           String?
   confidenceScore Float?
   aiAnalysis      String?
+  submissionOverrideReason String?
+  submissionOverriddenAt   DateTime?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   
@@ -94,6 +98,8 @@ model Inspection {
   violations      Violation[]
   reports         Report[]
   reviews         Review[]
+  verificationFindings VerificationFinding[]
+  complianceMemoryEvents ComplianceMemoryEvent[]
   
   @@index([inspectorId])
   @@index([siteId])
@@ -103,6 +109,48 @@ model Inspection {
   @@index([inspectorId, status])
   @@index([scheduledDate])
   @@index([createdAt])
+}
+
+model VerificationFinding {
+  id                String     @id @default(uuid())
+  inspectionId      String
+  inspection        Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  checklistItemId   String?
+  checklistLabel    String
+  finding           String
+  confidence        Float
+  evidenceReference String?
+  createdAt         DateTime   @default(now())
+
+  @@index([inspectionId])
+  @@index([createdAt])
+}
+
+model ComplianceMemoryEvent {
+  id                String      @id @default(uuid())
+  inspectionId      String?
+  inspection        Inspection? @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  siteId            String?
+  site              Site?       @relation(fields: [siteId], references: [id], onDelete: SetNull)
+  checklistItemId   String?
+  checklistLabel    String?
+  eventType         String
+  outcome           String
+  finding           String?
+  confidence        Float?
+  evidenceReference String?
+  actorId           String?
+  actor             User?       @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  reason            String?
+  sourceRecordId    String?
+  metadata          Json?       @db.JsonB
+  occurredAt        DateTime    @default(now())
+
+  @@index([inspectionId])
+  @@index([siteId, checklistItemId, outcome, occurredAt])
+  @@index([actorId, occurredAt])
+  @@index([eventType, occurredAt])
+  @@unique([eventType, sourceRecordId])
 }
 
 model InspectionImage {

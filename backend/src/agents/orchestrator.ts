@@ -5,7 +5,7 @@ import { TrustEvolutionAgent } from './trust-evolution-agent'
 import { SystemicRiskDiscoveryAgent } from './systemic-risk-agent'
 import { ReportGenerationAgent } from './report-generation-agent'
 import { RouteOptimizationAgent } from './route-optimization-agent'
-import { agentMemory } from './memory'
+import { complianceMemory } from '../services/complianceMemory'
 
 export class AgentOrchestrator {
   private realityVerificationAgent: RealityVerificationAgent
@@ -167,10 +167,7 @@ export class AgentOrchestrator {
 
     // Store workflow log in memory
     if (state.inspectionId) {
-      agentMemory.setAgentMemory('orchestrator', `workflow-${state.inspectionId}`, {
-        log: workflowLog,
-        completedAt: new Date(),
-      })
+      await complianceMemory.recordWorkflowEvent(state.inspectionId, workflowLog)
     }
 
     return currentState
@@ -296,13 +293,13 @@ export class AgentOrchestrator {
   }
 
   // Reset Agent Memory
-  resetMemory() {
-    agentMemory.clearOldMemory(0) // Clear all memory
+  async resetMemory() {
+    return complianceMemory.resetDevelopmentMemory()
   }
 
   // Get Memory Statistics
-  getMemoryStats() {
-    return agentMemory.getMemoryStats()
+  async getMemoryStats() {
+    return complianceMemory.getMemoryStats()
   }
 }
 

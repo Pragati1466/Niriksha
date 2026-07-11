@@ -10,7 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Inspection } from '@/types'
 import { formatDate } from '@/lib/utils'
-import { Calendar, Camera, FileText, AlertTriangle, CheckCircle, Clock } from 'lucide-react'
+import { InspectionStatusBadge } from '@/components/inspections/inspection-status-badge'
+import { Calendar, Camera, FileText, AlertTriangle, CheckCircle, Clock, ShieldCheck } from 'lucide-react'
 
 export default function InspectorDashboard() {
   const { user, loading } = useAuth()
@@ -45,18 +46,6 @@ export default function InspectorDashboard() {
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'ASSIGNED': return 'bg-blue-500'
-      case 'IN_PROGRESS': return 'bg-yellow-500'
-      case 'SUBMITTED': return 'bg-purple-500'
-      case 'UNDER_REVIEW': return 'bg-orange-500'
-      case 'APPROVED': return 'bg-green-500'
-      case 'REJECTED': return 'bg-red-500'
-      default: return 'bg-gray-500'
-    }
-  }
-
   if (loading || loadingInspections) {
     return (
       <div className="min-h-screen">
@@ -68,19 +57,27 @@ export default function InspectorDashboard() {
     )
   }
 
-  const assignedInspections = inspections.filter(i => i.status === 'ASSIGNED' || i.status === 'IN_PROGRESS')
-  const completedInspections = inspections.filter(i => i.status === 'SUBMITTED' || i.status === 'UNDER_REVIEW' || i.status === 'APPROVED')
+  const assignedInspections = inspections.filter(i => i.status === 'ASSIGNED')
+  const inProgressInspections = inspections.filter(i => i.status === 'IN_PROGRESS' || i.status === 'VERIFYING')
+  const completedInspections = inspections.filter(i => ['VERIFIED', 'SUBMITTED', 'UNDER_REVIEW', 'APPROVED'].includes(i.status))
+  const heldInspections = inspections.filter(i => i.status === 'HOLD_FOR_REVIEW')
+  const today = new Date().toDateString()
+  const verifiedToday = inspections.filter(i => i.status === 'VERIFIED' && i.completedDate && new Date(i.completedDate).toDateString() === today).length
+  const confidenceValues = inspections.map(i => i.confidenceScore).filter((value): value is number => typeof value === 'number')
+  const averageConfidence = confidenceValues.length ? confidenceValues.reduce((sum, value) => sum + value, 0) / confidenceValues.length : null
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold">Inspector Dashboard</h1>
-          <p className="text-muted-foreground">Manage your assigned inspections</p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div><h1 className="text-3xl font-bold">Inspector Dashboard</h1><p className="text-muted-foreground">Manage your assigned inspections</p></div>
+            <Button variant="outline" onClick={() => router.push('/compliance-memory')}>Compliance Memory</Button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Assigned</CardTitle>
@@ -96,26 +93,33 @@ export default function InspectorDashboard() {
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{inspections.filter(i => i.status === 'IN_PROGRESS').length}</div>
+              <div className="text-2xl font-bold">{inProgressInspections.length}</div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completed</CardTitle>
+              <CardTitle className="text-sm font-medium">Verified Today</CardTitle>
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{completedInspections.length}</div>
+              <div className="text-2xl font-bold">{verifiedToday}</div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Violations</CardTitle>
+              <CardTitle className="text-sm font-medium">Held for Review</CardTitle>
               <AlertTriangle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{inspections.reduce((acc, i) => acc + i.violations.length, 0)}</div>
+              <div className="text-2xl font-bold">{heldInspections.length}</div>
             </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Avg. Verification Confidence</CardTitle>
+              <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent><div className="text-2xl font-bold">{averageConfidence === null ? '—' : `${averageConfidence.toFixed(1)}%`}</div></CardContent>
           </Card>
         </div>
 
@@ -134,7 +138,7 @@ export default function InspectorDashboard() {
                 </CardContent>
               </Card>
             ) : (
-              assignedInspections.map((inspection) => (
+              [...assignedInspections, ...inProgressInspections, ...heldInspections].map((inspection) => (
                 <Card key={inspection.id}>
                   <CardHeader>
                     <div className="flex items-center justify-between">
@@ -142,7 +146,7 @@ export default function InspectorDashboard() {
                         <CardTitle>{inspection.site.name}</CardTitle>
                         <CardDescription>{inspection.site.address}</CardDescription>
                       </div>
-                      <Badge className={getStatusColor(inspection.status)}>{inspection.status}</Badge>
+                      <InspectionStatusBadge status={inspection.status} />
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -157,7 +161,7 @@ export default function InspectorDashboard() {
                           className="flex-1"
                         >
                           <Camera className="mr-2 h-4 w-4" />
-                          Start Inspection
+                          {inspection.status === 'HOLD_FOR_REVIEW' ? 'Resolve Review Hold' : 'Open Inspection'}
                         </Button>
                       </div>
                     </div>
@@ -183,7 +187,7 @@ export default function InspectorDashboard() {
                         <CardTitle>{inspection.site.name}</CardTitle>
                         <CardDescription>{inspection.site.address}</CardDescription>
                       </div>
-                      <Badge className={getStatusColor(inspection.status)}>{inspection.status}</Badge>
+                      <InspectionStatusBadge status={inspection.status} />
                     </div>
                   </CardHeader>
                   <CardContent>
