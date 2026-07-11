@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import Link from 'next/link'
 
 export default function LoginPage() {
@@ -14,6 +15,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [demoRole, setDemoRole] = useState<'INSPECTOR' | 'SUPERVISOR' | 'ADMIN'>('SUPERVISOR')
   const { login, enterDemoMode } = useAuth()
   const router = useRouter()
 
@@ -33,7 +35,7 @@ export default function LoginPage() {
   }
 
   const handleDemoMode = () => {
-    enterDemoMode()
+    enterDemoMode(demoRole)
     router.push('/')
   }
 
@@ -77,7 +79,20 @@ export default function LoginPage() {
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
-          <div className="mt-4">
+          <div className="mt-4 space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="demo-role">Demo Role</Label>
+              <Select value={demoRole} onValueChange={(value: any) => setDemoRole(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role for demo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="INSPECTOR">Inspector</SelectItem>
+                  <SelectItem value="SUPERVISOR">Supervisor</SelectItem>
+                  <SelectItem value="ADMIN">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Button 
               type="button" 
               variant="outline" 
