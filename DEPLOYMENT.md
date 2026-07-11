@@ -98,6 +98,8 @@ JWT_EXPIRES_IN=7d
 WATSONX_API_KEY=your_watsonx_api_key (optional)
 WATSONX_PROJECT_ID=your_project_id (optional)
 PORT=3001
+NODE_ENV=production
+FRONTEND_URL=https://your-frontend-url.com
 ```
 
 ### Frontend (.env.local)
