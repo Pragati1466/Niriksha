@@ -13,31 +13,89 @@ import { formatDate } from '@/lib/utils'
 import { Calendar, Camera, FileText, AlertTriangle, CheckCircle, Clock } from 'lucide-react'
 
 export default function InspectorDashboard() {
-  const { user, loading } = useAuth()
+  const { user, loading, isDemoMode } = useAuth()
   const router = useRouter()
   const [inspections, setInspections] = useState<Inspection[]>([])
   const [loadingInspections, setLoadingInspections] = useState(true)
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'INSPECTOR')) {
+    if (!loading && (!user || user.role !== 'INSPECTOR') && !isDemoMode) {
       router.push('/auth/login')
     }
-  }, [user, loading, router])
+  }, [user, loading, router, isDemoMode])
 
   useEffect(() => {
-    if (user) {
+    if (user || isDemoMode) {
       fetchInspections()
     }
-  }, [user])
+  }, [user, isDemoMode])
 
   const fetchInspections = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/inspections`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      const data = await response.json()
-      setInspections(data.inspections || [])
+      if (isDemoMode) {
+        // Use mock data for demo mode
+        setInspections([
+          {
+            id: '1',
+            siteId: 'site1',
+            site: { id: 'site1', name: 'Restaurant A', address: '123 Main St', departmentId: 'dept1' },
+            inspectorId: 'insp1',
+            inspector: { id: 'insp1', name: 'Demo User', email: 'demo@niriksha.com', role: 'INSPECTOR', createdAt: '2024-01-01' },
+            templateId: 'templ1',
+            template: { id: 'templ1', name: 'Health Inspection', departmentId: 'dept1', checklistItems: [] },
+            status: 'ASSIGNED',
+            scheduledDate: '2024-01-20',
+            confidenceScore: 0,
+            aiAnalysis: {},
+            createdAt: '2024-01-15',
+            images: [],
+            checklists: [],
+            violations: []
+          },
+          {
+            id: '2',
+            siteId: 'site2',
+            site: { id: 'site2', name: 'Factory B', address: '456 Industrial Ave', departmentId: 'dept2' },
+            inspectorId: 'insp1',
+            inspector: { id: 'insp1', name: 'Demo User', email: 'demo@niriksha.com', role: 'INSPECTOR', createdAt: '2024-01-01' },
+            templateId: 'templ2',
+            template: { id: 'templ2', name: 'Safety Inspection', departmentId: 'dept2', checklistItems: [] },
+            status: 'IN_PROGRESS',
+            scheduledDate: '2024-01-18',
+            confidenceScore: 0,
+            aiAnalysis: {},
+            createdAt: '2024-01-16',
+            images: [],
+            checklists: [],
+            violations: []
+          },
+          {
+            id: '3',
+            siteId: 'site3',
+            site: { id: 'site3', name: 'School C', address: '789 Education Blvd', departmentId: 'dept1' },
+            inspectorId: 'insp1',
+            inspector: { id: 'insp1', name: 'Demo User', email: 'demo@niriksha.com', role: 'INSPECTOR', createdAt: '2024-01-01' },
+            templateId: 'templ1',
+            template: { id: 'templ1', name: 'Health Inspection', departmentId: 'dept1', checklistItems: [] },
+            status: 'SUBMITTED',
+            scheduledDate: '2024-01-15',
+            completedDate: '2024-01-15',
+            confidenceScore: 95,
+            aiAnalysis: {},
+            createdAt: '2024-01-14',
+            images: [],
+            checklists: [],
+            violations: []
+          }
+        ])
+      } else {
+        const token = localStorage.getItem('token')
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/inspections`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const data = await response.json()
+        setInspections(data.inspections || [])
+      }
     } catch (error) {
       console.error('Failed to fetch inspections:', error)
     } finally {

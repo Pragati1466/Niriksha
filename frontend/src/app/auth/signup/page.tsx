@@ -17,6 +17,7 @@ export default function SignupPage() {
   const [role, setRole] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [demoRole, setDemoRole] = useState<'INSPECTOR' | 'SUPERVISOR' | 'ADMIN'>('SUPERVISOR')
   const { signup, enterDemoMode } = useAuth()
   const router = useRouter()
 
@@ -42,7 +43,7 @@ export default function SignupPage() {
   }
 
   const handleDemoMode = () => {
-    enterDemoMode()
+    enterDemoMode(demoRole)
     router.push('/')
   }
 
@@ -111,7 +112,20 @@ export default function SignupPage() {
               {loading ? 'Creating account...' : 'Sign Up'}
             </Button>
           </form>
-          <div className="mt-4">
+          <div className="mt-4 space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="demo-role">Demo Role</Label>
+              <Select value={demoRole} onValueChange={(value: any) => setDemoRole(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role for demo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="INSPECTOR">Inspector</SelectItem>
+                  <SelectItem value="SUPERVISOR">Supervisor</SelectItem>
+                  <SelectItem value="ADMIN">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <Button 
               type="button" 
               variant="outline" 
