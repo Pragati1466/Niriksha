@@ -3,6 +3,7 @@ import { authenticateToken } from '../middleware/auth'
 import { agentOrchestrator } from '../agents/orchestrator'
 import { AgentState } from '../agents/types'
 import prisma from '../utils/prisma'
+import { requireRole } from '../middleware/auth'
 
 const router = express.Router()
 
@@ -244,7 +245,7 @@ router.get('/workflow-status/:inspectionId', async (req, res) => {
 // Get memory statistics
 router.get('/memory-stats', async (req, res) => {
   try {
-    const stats = agentOrchestrator.getMemoryStats()
+    const stats = await agentOrchestrator.getMemoryStats()
 
     res.json({
       success: true,
@@ -256,10 +257,41 @@ router.get('/memory-stats', async (req, res) => {
   }
 })
 
-// Reset agent memory
-router.post('/reset-memory', async (req, res) => {
+// Get institutional compliance memory history
+router.get('/memory-history', async (req, res) => {
   try {
-    agentOrchestrator.resetMemory()
+    const requestedLimit = Number(req.query.limit) || 25
+    const requestedOffset = Number(req.query.offset) || 0
+    const limit = Math.min(Math.max(requestedLimit, 1), 100)
+    const offset = Math.max(requestedOffset, 0)
+
+    const [events, total] = await Promise.all([
+      prisma.complianceMemoryEvent.findMany({
+        include: {
+          actor: { select: { id: true, name: true, email: true, role: true } },
+        },
+        orderBy: { occurredAt: 'desc' },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.complianceMemoryEvent.count(),
+    ])
+
+    res.json({
+      success: true,
+      events,
+      pagination: { limit, offset, total, hasMore: offset + events.length < total },
+    })
+  } catch (error) {
+    console.error('Memory history error:', error)
+    res.status(500).json({ error: 'Failed to get compliance memory history' })
+  }
+})
+
+// Reset agent memory
+router.post('/reset-memory', requireRole(['ADMIN']), async (req, res) => {
+  try {
+    await agentOrchestrator.resetMemory()
 
     res.json({
       success: true,
@@ -267,7 +299,8 @@ router.post('/reset-memory', async (req, res) => {
     })
   } catch (error) {
     console.error('Reset memory error:', error)
-    res.status(500).json({ error: 'Failed to reset agent memory' })
+    const message = error instanceof Error ? error.message : 'Failed to reset agent memory'
+    res.status(message === 'Memory reset is disabled in production' ? 403 : 500).json({ error: message })
   }
 })
 

@@ -1,6 +1,6 @@
 // Systemic Risk Discovery Agent
 import { AgentState, RiskAnalysisResult, RiskArea, RepeatOffender, ViolationPattern } from './types'
-import { agentMemory } from './memory'
+import { complianceMemory } from '../services/complianceMemory'
 import prisma from '../utils/prisma'
 
 export class SystemicRiskDiscoveryAgent {
@@ -301,9 +301,7 @@ export class SystemicRiskDiscoveryAgent {
     }
 
     // Store in memory
-    highRiskAreas.forEach(area => {
-      agentMemory.setRiskAnalysis(area.areaId, result)
-    })
+    await Promise.all(highRiskAreas.map(area => complianceMemory.recordRiskEvent(area.areaId, result)))
 
     return result
   }
