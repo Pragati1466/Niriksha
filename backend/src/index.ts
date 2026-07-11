@@ -23,9 +23,7 @@ console.log('Environment PORT:', process.env.PORT)
 console.log('Using PORT:', PORT)
 
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.FRONTEND_URL 
-    : true, // Allow all origins in development
+  origin: true, // Allow all origins
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
