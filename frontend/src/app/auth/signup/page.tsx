@@ -17,7 +17,7 @@ export default function SignupPage() {
   const [role, setRole] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const { signup } = useAuth()
+  const { signup, enterDemoMode } = useAuth()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,6 +39,11 @@ export default function SignupPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleDemoMode = () => {
+    enterDemoMode()
+    router.push('/')
   }
 
   return (
@@ -106,6 +111,16 @@ export default function SignupPage() {
               {loading ? 'Creating account...' : 'Sign Up'}
             </Button>
           </form>
+          <div className="mt-4">
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="w-full"
+              onClick={handleDemoMode}
+            >
+              🎮 Try Demo Mode (No Login Required)
+            </Button>
+          </div>
           <div className="mt-4 text-center text-sm">
             <span className="text-muted-foreground">Already have an account? </span>
             <Link href="/auth/login" className="text-primary hover:underline">
