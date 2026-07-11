@@ -55,7 +55,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     if (!response.ok) {
-      throw new Error('Signup failed')
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Signup failed')
     }
 
     const data = await response.json()
