@@ -1,7 +1,8 @@
 // Reality Verification Agent
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { promises as fs } from 'fs'
+import path from 'path'
 import { AgentState, RealityVerificationResult, Inconsistency } from './types'
-import { agentMemory } from './memory'
 
 export class RealityVerificationAgent {
   private genAI: GoogleGenerativeAI
@@ -17,11 +18,38 @@ export class RealityVerificationAgent {
 
   constructor() {
     this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+    this.model = this.genAI.getGenerativeModel({ model: 'gemini-3.5-flash' })
   }
 
   // Tool: Analyze Image
-  private async analyzeImage(imageUrl: string, checklistItem: string): Promise<any> {
+  private async loadImagePart(imagePath: string): Promise<{ inlineData: { mimeType: string, data: string } }> {
+    if (/^https?:\/\//i.test(imagePath)) {
+      throw new Error('Verification requires a locally stored uploaded image, not an image URL')
+    }
+
+    const uploadsDirectory = path.resolve(process.cwd(), 'uploads')
+    const resolvedPath = path.isAbsolute(imagePath)
+      ? path.resolve(imagePath)
+      : path.resolve(process.cwd(), imagePath.replace(/^[/\\]+/, ''))
+
+    if (!resolvedPath.startsWith(`${uploadsDirectory}${path.sep}`)) {
+      throw new Error('Image path must be inside the uploads directory')
+    }
+
+    const bytes = await fs.readFile(resolvedPath)
+    const mimeType = this.detectImageMimeType(bytes)
+    return { inlineData: { mimeType, data: bytes.toString('base64') } }
+  }
+
+  private detectImageMimeType(bytes: Buffer): string {
+    if (bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]))) return 'image/png'
+    if (bytes.subarray(0, 3).equals(Buffer.from([0xFF, 0xD8, 0xFF]))) return 'image/jpeg'
+    if (bytes.subarray(0, 6).toString('ascii') === 'GIF87a' || bytes.subarray(0, 6).toString('ascii') === 'GIF89a') return 'image/gif'
+    if (bytes.subarray(0, 4).toString('ascii') === 'RIFF' && bytes.subarray(8, 12).toString('ascii') === 'WEBP') return 'image/webp'
+    throw new Error('Uploaded file is not a supported image format')
+  }
+
+  private async analyzeImage(imagePath: string, checklistItem: string): Promise<any> {
     try {
       const prompt = `
       Analyze this image in the context of a safety inspection.
@@ -41,10 +69,8 @@ export class RealityVerificationAgent {
       }
       `
 
-      const result = await this.model.generateContent([
-        prompt,
-        imageUrl,
-      ])
+      const imagePart = await this.loadImagePart(imagePath)
+      const result = await this.model.generateContent([prompt, imagePart])
 
       const response = await result.response
       const text = response.text()
@@ -53,10 +79,10 @@ export class RealityVerificationAgent {
         return JSON.parse(text)
       } catch {
         return {
-          compliant: true,
-          confidence: 0.5,
-          observations: [text],
-          violations: [],
+          status: 'UNVERIFIED',
+          compliant: null,
+          confidence: 0,
+          reason: 'Unable to parse verification response',
         }
       }
     } catch (error) {
@@ -75,11 +101,9 @@ export class RealityVerificationAgent {
     for (const item of checklist) {
       if (item.status === 'NOT_APPLICABLE') continue
 
-      // Find relevant images for this checklist item
-      const relevantImages = images.filter(img => 
-        img.description.toLowerCase().includes(item.label.toLowerCase()) ||
-        img.description.toLowerCase().includes('general')
-      )
+      // Each stored inspection image is analyzed visually for every checklist item.
+      // Metadata such as filenames and descriptions is never used as evidence.
+      const relevantImages = images
 
       if (relevantImages.length === 0) {
         // No images to verify - flag as potential issue
@@ -101,11 +125,26 @@ export class RealityVerificationAgent {
       for (const image of relevantImages) {
         try {
           const analysis = await this.analyzeImage(image.url, item.label)
+
+          if (analysis.status === 'UNVERIFIED') {
+            inconsistencies.push({
+              checklistItemId: item.id,
+              checklistLabel: item.label,
+              claimedStatus: item.status,
+              detectedStatus: 'UNKNOWN',
+              confidence: 0,
+              reasoning: analysis.reason,
+              severity: this.calculateSeverity(item.required, 0),
+              evidenceReference: image.url,
+            })
+            continue
+          }
           
           const detectedStatus = analysis.compliant ? 'COMPLIANT' : 'NON_COMPLIANT'
           
-          // Check for inconsistency
-          if (item.status !== detectedStatus) {
+          // Non-compliance and low-confidence visual evidence must be surfaced
+          // even when the inspector selected the same checklist status.
+          if (item.status !== detectedStatus || detectedStatus === 'NON_COMPLIANT' || analysis.confidence < 0.7) {
             inconsistencies.push({
               checklistItemId: item.id,
               checklistLabel: item.label,
@@ -114,10 +153,21 @@ export class RealityVerificationAgent {
               confidence: analysis.confidence,
               reasoning: analysis.observations.join('; '),
               severity: this.calculateSeverity(item.required, analysis.confidence),
+              evidenceReference: image.url,
             })
           }
         } catch (error) {
           console.error(`Error analyzing image for ${item.label}:`, error)
+          inconsistencies.push({
+            checklistItemId: item.id,
+            checklistLabel: item.label,
+            claimedStatus: item.status,
+            detectedStatus: 'UNKNOWN',
+            confidence: 0,
+            reasoning: 'Unable to verify image evidence',
+            severity: this.calculateSeverity(item.required, 0),
+            evidenceReference: image.url,
+          })
         }
       }
     }
@@ -179,14 +229,6 @@ export class RealityVerificationAgent {
         flaggedItems: inconsistencies.filter(i => i.severity === 'CRITICAL' || i.severity === 'HIGH').map(i => i.checklistItemId),
         explanation,
         verified,
-      }
-
-      // Store in memory
-      if (state.inspectorId) {
-        agentMemory.setInspectorMemory(state.inspectorId, {
-          type: 'REALITY_VERIFICATION',
-          data: result,
-        })
       }
 
       return {
