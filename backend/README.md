@@ -1,289 +1,125 @@
-# NIRIKSHA Inspection Workflow API - Backend
+# NIRIKSHA Backend API
 
-Government inspection intelligence platform - Inspection Workflow & Data Collection Module backend API.
+Express.js backend for the NIRIKSHA inspection intelligence platform.
 
-## Overview
+## Setup
 
-This is the FastAPI backend for the NIRIKSHA Inspection Workflow & Data Collection Module. It provides RESTful APIs for managing inspections, checklists, evidence, notes, and offline synchronization for government inspection systems.
-
-## Features
-
-- **Inspection Management**: Create, update, and manage inspections with status tracking
-- **Checklist System**: Template-based checklists with sections, items, and responses
-- **Evidence Collection**: Photo and document evidence upload with AI verification
-- **Notes & Observations**: Rich text and voice notes for inspection observations
-- **Offline Sync**: First-class offline support with conflict resolution
-- **Audit Logging**: Comprehensive audit trail for compliance
-- **Structured Logging**: JSON logging for observability
-- **Error Handling**: Custom exception handling with detailed error responses
-
-## Technology Stack
-
-- **Framework**: FastAPI 0.104.1
-- **Database**: PostgreSQL with SQLAlchemy 2.0.23
-- **ORM**: SQLAlchemy with UUID primary keys
-- **Validation**: Pydantic 2.5.0
-- **Authentication**: python-jose, passlib
-- **Logging**: python-json-logger, structlog
-- **Task Queue**: Celery with Redis
-- **Storage**: AWS S3 (via boto3)
-
-## Project Structure
-
-```
-backend/
-├── api/
-│   ├── main.py                 # FastAPI application entry point
-│   ├── middleware/             # Custom middleware
-│   │   ├── error_handler.py   # Exception handling
-│   │   └── logging.py         # Logging configuration
-│   ├── routers/               # API route handlers
-│   │   ├── inspection.py      # Inspection endpoints
-│   │   ├── checklist.py       # Checklist endpoints
-│   │   ├── evidence.py        # Evidence endpoints
-│   │   ├── notes.py           # Notes endpoints
-│   │   └── sync.py            # Sync endpoints
-│   └── schemas/               # Pydantic schemas
-│       ├── inspection.py      # Inspection schemas
-│       ├── checklist.py       # Checklist schemas
-│       ├── evidence.py        # Evidence schemas
-│       ├── notes.py           # Notes schemas
-│       ├── sync.py            # Sync schemas
-│       └── common.py          # Common schemas
-├── database/
-│   ├── models/                # SQLAlchemy ORM models
-│   │   ├── base.py           # Base model with mixins
-│   │   ├── inspection.py     # Inspection model
-│   │   ├── checklist.py      # Checklist models
-│   │   ├── evidence.py       # Evidence model
-│   │   ├── note.py           # Note model
-│   │   ├── state_history.py  # State history model
-│   │   ├── offline_queue.py  # Offline sync model
-│   │   ├── location_log.py   # Location tracking model
-│   │   ├── submission.py     # Submission model
-│   │   ├── report.py         # Report model
-│   │   ├── sync_conflict.py   # Sync conflict model
-│   │   ├── audit_log.py      # Audit log model
-│   │   └── attachment.py     # Attachment model
-│   ├── migrations/            # Database migrations
-│   │   └── 001_create_inspection_tables.sql
-│   └── session.py            # Database session management
-├── repositories/             # Data access layer
-│   ├── base_repository.py    # Base repository with CRUD
-│   ├── inspection_repository.py
-│   ├── checklist_repository.py
-│   ├── evidence_repository.py
-│   └── state_history_repository.py
-├── services/                 # Business logic layer
-│   ├── base_service.py       # Base service with validation
-│   ├── inspection_service.py
-│   ├── checklist_service.py
-│   └── evidence_service.py
-└── requirements.txt          # Python dependencies
+1. Install dependencies:
+```bash
+npm install
 ```
 
-## Prerequisites
+2. Configure environment variables in `.env`:
+```env
+DATABASE_URL="postgresql://user:password@localhost:5432/niriksha"
+JWT_SECRET="your-secret-key"
+JWT_EXPIRES_IN="7d"
+GEMINI_API_KEY="your-gemini-api-key"
+PORT=5000
+```
 
-- Python 3.11 or higher
-- PostgreSQL 14 or higher
-- Redis (for Celery task queue)
-- AWS S3 account (for file storage)
+3. Run database migrations:
+```bash
+npx prisma migrate dev --name init
+```
 
-## Installation
+4. Generate Prisma client:
+```bash
+npx prisma generate
+```
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/Pragati1466/Niriksha.git
-   cd Niriksha/backend
-   ```
+5. Start development server:
+```bash
+npm run dev
+```
 
-2. **Create virtual environment**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+## Available Scripts
 
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Configure environment variables**
-   Create a `.env` file in the backend directory:
-   ```env
-   DATABASE_URL=postgresql://user:password@localhost:5432/niriksha
-   REDIS_URL=redis://localhost:6379/0
-   AWS_ACCESS_KEY_ID=your_access_key
-   AWS_SECRET_ACCESS_KEY=your_secret_key
-   AWS_S3_BUCKET=your_bucket_name
-   SECRET_KEY=your_secret_key
-   LOG_LEVEL=INFO
-   ```
-
-5. **Run database migrations**
-   ```bash
-   # Using psql
-   psql -U user -d niriksha -f database/migrations/001_create_inspection_tables.sql
-   ```
-
-6. **Start the development server**
-   ```bash
-   uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
-   ```
-
-The API will be available at `http://localhost:8000`
+- `npm run dev` - Start development server with hot reload
+- `npm run build` - Compile TypeScript to JavaScript
+- `npm start` - Start production server
+- `npx prisma studio` - Open Prisma Studio for database management
+- `npx prisma migrate dev` - Run database migrations
 
 ## API Documentation
 
-Once the server is running, access the interactive API documentation:
-
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-- **OpenAPI Schema**: http://localhost:8000/openapi.json
-
-## API Endpoints
-
-### Health Check
-- `GET /health` - Health check endpoint
-- `GET /health/ready` - Readiness check endpoint
-- `GET /` - Root endpoint with API information
+### Authentication
+- **POST** `/api/auth/signup` - Register new user
+- **POST** `/api/auth/login` - Login user
 
 ### Inspections
-- `POST /api/v1/inspections` - Create inspection
-- `GET /api/v1/inspections` - List inspections
-- `GET /api/v1/inspections/{id}` - Get inspection details
-- `PATCH /api/v1/inspections/{id}` - Update inspection
-- `PATCH /api/v1/inspections/{id}/status` - Update inspection status
-- `POST /api/v1/inspections/{id}/check-in` - Check in at site
-- `POST /api/v1/inspections/{id}/check-out` - Check out from site
-- `GET /api/v1/inspections/{id}/timeline` - Get state timeline
-- `GET /api/v1/inspections/active` - Get active inspections
-- `DELETE /api/v1/inspections/{id}` - Delete inspection
+- **GET** `/api/inspections` - List inspections (authenticated)
+- **GET** `/api/inspections/:id` - Get inspection details
+- **POST** `/api/inspections` - Create inspection (Admin/Supervisor only)
+- **PUT** `/api/inspections/:id` - Update inspection
+- **POST** `/api/inspections/:id/images` - Upload inspection image
+- **PUT** `/api/inspections/:id/checklist` - Update checklist items
+- **POST** `/api/inspections/:id/violations` - Record violation
 
-### Checklists
-- `POST /api/v1/checklists/templates` - Create template
-- `GET /api/v1/checklists/templates` - List templates
-- `GET /api/v1/checklists/templates/{id}` - Get template with items
-- `POST /api/v1/checklists/templates/{id}/sections` - Add section
-- `POST /api/v1/checklists/sections/{id}/items` - Add item
-- `POST /api/v1/checklists/responses` - Create responses
-- `GET /api/v1/checklists/responses/{id}` - Get response
-- `PATCH /api/v1/checklists/responses/{id}` - Update response
-- `GET /api/v1/checklists/inspections/{id}/completion` - Get completion percentage
+### Users
+- **GET** `/api/users` - List all users (Admin only)
+- **GET** `/api/users/:id` - Get user details
 
-### Evidence
-- `POST /api/v1/evidence/presigned-url` - Get presigned upload URL
-- `POST /api/v1/evidence/photos` - Upload photo evidence
-- `POST /api/v1/evidence/documents` - Upload document evidence
-- `GET /api/v1/evidence/inspections/{id}` - List evidence
-- `GET /api/v1/evidence/{id}` - Get evidence
-- `PATCH /api/v1/evidence/{id}/metadata` - Update metadata
-- `PATCH /api/v1/evidence/{id}/verification` - Update verification status
-- `POST /api/v1/evidence/{id}/tags/{tag}` - Add tag
-- `DELETE /api/v1/evidence/{id}/tags/{tag}` - Remove tag
+### Departments
+- **GET** `/api/departments` - List all departments
+- **POST** `/api/departments` - Create department (Admin only)
 
-### Notes
-- `POST /api/v1/notes` - Create note
-- `GET /api/v1/notes/{id}` - Get note
-- `PATCH /api/v1/notes/{id}` - Update note
-- `DELETE /api/v1/notes/{id}` - Delete note
-- `GET /api/v1/notes/inspections/{id}` - List notes for inspection
+### Sites
+- **GET** `/api/sites` - List all sites
+- **POST** `/api/sites` - Create site (Admin only)
 
-### Sync
-- `POST /api/v1/sync/push` - Push offline changes
-- `POST /api/v1/sync/pull` - Pull server changes
-- `GET /api/v1/sync/status` - Get sync status
-- `POST /api/v1/sync/conflicts/{id}/resolve` - Resolve conflict
-- `GET /api/v1/sync/conflicts` - List conflicts
+### Templates
+- **GET** `/api/templates` - List all templates
+- **POST** `/api/templates` - Create template (Admin only)
 
-## Running in Production
+### Reports
+- **GET** `/api/reports/:inspectionId` - Get inspection report
+- **POST** `/api/reports/:inspectionId` - Generate PDF report
 
-1. **Use a production WSGI server**
-   ```bash
-   uvicorn api.main:app --host 0.0.0.0 --port 8000 --workers 4
-   ```
+### AI Services
+- **POST** `/api/ai/verify-reality` - Verify checklist against images using Gemini
+- **POST** `/api/ai/analyze-image` - Analyze single image
 
-2. **Configure proper CORS settings**
-   Update the CORS middleware in `api/main.py` to allow only specific origins.
+## Middleware
 
-3. **Enable HTTPS**
-   Use a reverse proxy like Nginx or Caddy to terminate SSL.
+### Authentication
+All protected routes require JWT authentication via the `authenticateToken` middleware.
 
-4. **Set up monitoring**
-   Configure logging to output to a log aggregation system.
+### Role-Based Access
+Some routes require specific roles via the `requireRole` middleware:
+- `ADMIN` - Full system access
+- `SUPERVISOR` - Review and manage inspections
+- `INSPECTOR` - Conduct inspections
 
-5. **Run Celery workers**
-   ```bash
-   celery -A api.tasks worker --loglevel=info
-   ```
+## Database
 
-## Testing
+The application uses PostgreSQL with Prisma ORM. See `prisma/schema.prisma` for the complete database schema.
 
-Run tests using pytest:
-```bash
-pytest tests/
-```
+## File Uploads
 
-## Database Schema
+Uploaded files are stored in the `uploads/` directory:
+- Images: `uploads/images/`
+- Reports: `uploads/reports/`
 
-The database schema is defined in `database/migrations/001_create_inspection_tables.sql`. Key tables include:
+## AI Integration
 
-- `inspections` - Main inspection records
-- `inspection_checklists` - Checklist responses
-- `checklist_templates` - Template definitions
-- `checklist_sections` - Template sections
-- `checklist_items` - Template items
-- `evidence` - Evidence records
-- `inspection_notes` - Notes and observations
-- `inspection_state_history` - State transition history
-- `inspection_offline_queue` - Offline sync queue
-- `inspection_location_log` - Location tracking
-- `submissions` - Inspection submissions
-- `generated_reports` - Generated reports
-- `sync_conflicts` - Sync conflicts
-- `audit_logs` - Audit trail
-- `inspection_attachments` - Supporting attachments
+The backend uses Google's Gemini 2.5 Flash for:
+- Image analysis
+- Reality verification (comparing checklist claims with visual evidence)
+- Confidence scoring
 
 ## Error Handling
 
-The API uses custom exception classes for consistent error responses:
-
-- `AppException` - Base application exception
-- `ValidationException` - Validation errors (400)
-- `NotFoundException` - Resource not found (404)
-- `ConflictException` - Conflict errors (409)
-- `UnauthorizedException` - Authorization errors (401)
-- `ForbiddenException` - Permission errors (403)
-- `RateLimitException` - Rate limiting errors (429)
-
-All errors return a structured JSON response:
+All endpoints return consistent error responses:
 ```json
 {
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "Error message",
-    "details": {},
-    "request_id": "uuid",
-    "timestamp": "ISO-8601"
-  }
+  "error": "Error message"
 }
 ```
 
-## Logging
+## Security
 
-The application uses structured JSON logging for observability. Logs include:
-
-- Request/response logging with duration
-- Audit events for compliance
-- Error logging with stack traces
-- Request ID tracing
-
-Configure log level via the `LOG_LEVEL` environment variable.
-
-## License
-
-Proprietary - All rights reserved.
-
-## Support
-
-For support, contact the NIRIKSHA development team.
+- Passwords are hashed using bcryptjs
+- JWT tokens for authentication
+- Role-based access control
+- Input validation on all endpoints
