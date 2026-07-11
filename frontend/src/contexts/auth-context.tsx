@@ -10,7 +10,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>
   signup: (name: string, email: string, password: string, role: string) => Promise<void>
   logout: () => void
-  enterDemoMode: () => void
+  enterDemoMode: (role: 'INSPECTOR' | 'SUPERVISOR' | 'ADMIN') => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -80,15 +80,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsDemoMode(false)
   }
 
-  const enterDemoMode = () => {
+  const enterDemoMode = (role: 'INSPECTOR' | 'SUPERVISOR' | 'ADMIN') => {
     localStorage.setItem('demoMode', 'true')
+    localStorage.setItem('demoRole', role)
     setIsDemoMode(true)
-    // Set a demo user
+    // Set a demo user with selected role
     const demoUser: User = {
       id: 'demo-user',
       name: 'Demo User',
       email: 'demo@niriksha.com',
-      role: 'SUPERVISOR',
+      role: role,
       departmentId: undefined,
       createdAt: new Date().toISOString()
     }
