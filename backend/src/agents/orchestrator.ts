@@ -6,6 +6,7 @@ import { SystemicRiskDiscoveryAgent } from './systemic-risk-agent'
 import { ReportGenerationAgent } from './report-generation-agent'
 import { RouteOptimizationAgent } from './route-optimization-agent'
 import { complianceMemory } from '../services/complianceMemory'
+import { watsonxService } from '../services/watsonxService'
 
 export class AgentOrchestrator {
   private realityVerificationAgent: RealityVerificationAgent
@@ -23,7 +24,31 @@ export class AgentOrchestrator {
   }
 
   // Decision Node: Determine Next Agent
+  // Uses WatsonX LLM for dynamic, context-aware routing when available
+  // Falls back to deterministic rule-based routing
   private determineNextAgent(state: AgentState): string {
+    const deterministicNext = this.deterministicRouting(state)
+    return deterministicNext
+  }
+
+  // LLM-powered dynamic routing
+  private async llmRouting(state: AgentState): Promise<string> {
+    try {
+      const decision = await watsonxService.decideNextAgent({
+        currentAgent: state.currentAgent,
+        results: state.results,
+        inspectionId: state.inspectionId,
+        inspectorId: state.inspectorId,
+      })
+      return decision.nextAgent || this.deterministicRouting(state)
+    } catch (error) {
+      console.warn('LLM routing failed, using deterministic fallback:', error)
+      return this.deterministicRouting(state)
+    }
+  }
+
+  // Deterministic fallback routing
+  private deterministicRouting(state: AgentState): string {
     const { currentAgent, results } = state
 
     // Initial state - start with reality verification

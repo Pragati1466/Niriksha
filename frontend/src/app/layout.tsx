@@ -4,6 +4,7 @@ import './globals.css'
 import { ThemeProvider } from '@/components/shared/theme-provider'
 import { AuthProvider } from '@/contexts/auth-context'
 import { ServiceWorkerRegister } from '@/components/shared/service-worker-register'
+import { FloatingChatWidget } from '@/components/ai/floating-chat-widget'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -29,6 +30,7 @@ export default function RootLayout({
           >
             <ServiceWorkerRegister />
             {children}
+            <FloatingChatWidget />
           </ThemeProvider>
         </AuthProvider>
       </body>

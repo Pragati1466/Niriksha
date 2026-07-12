@@ -90,29 +90,43 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
+      {/* Hero Section - One-Liner Pitch */}
+      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-16">
         <div className="text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 mb-8">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 mb-6">
             <Sparkles className="w-4 h-4 text-purple-400" />
-            <span className="text-sm text-purple-300">IBM Hackathon 2026 — Agentic AI for Government</span>
+            <span className="text-sm text-purple-300">IBM SkillsBuild Hackathon 2026 — Agentic AI for Government</span>
           </div>
-          <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 leading-tight">
-            AI-Powered{' '}
+          <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 leading-tight">
+            NIRIKSHA:{' '}
             <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400 text-transparent bg-clip-text">
-              Inspection Intelligence
+              AI Agents that Verify Reality,
             </span>
-            {' '}Platform
+            <br />
+            <span>Evolve Trust, and Close the Compliance Loop Autonomously</span>
           </h1>
-          <p className="text-xl text-white/60 max-w-3xl mx-auto mb-10">
-            Niriksha is an Agentic AI platform that helps government departments prioritize inspections, 
-            verify evidence, and make faster, risk-informed regulatory decisions — keeping humans 
-            <span className="text-white/90 font-semibold"> completely in control</span>.
+          <p className="text-lg text-white/60 max-w-3xl mx-auto mb-6">
+            <span className="text-purple-300 font-semibold">ORDI</span> (Operational Reality Divergence Index) powered multi-agent platform 
+            that doesn't just assist inspections — it <span className="text-white/90 font-semibold">verifies every finding</span> with AI, 
+            <span className="text-white/90 font-semibold"> evolves inspector trust</span> dynamically, and 
+            <span className="text-white/90 font-semibold"> closes the compliance loop</span> autonomously.
           </p>
+          <div className="flex items-center justify-center gap-4 mb-6">
+            <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 text-sm px-3 py-1">
+              <Activity className="w-3 h-3 mr-1" /> ORDI Powered
+            </Badge>
+            <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-sm px-3 py-1">
+              <Brain className="w-3 h-3 mr-1" /> WatsonX Granite
+            </Badge>
+            <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-sm px-3 py-1">
+              <Shield className="w-3 h-3 mr-1" /> Multi-Agent Graph
+            </Badge>
+          </div>
           <div className="flex flex-wrap justify-center gap-4 mb-16">
             <Button size="lg" className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-lg px-8 py-6" onClick={() => router.push('/auth/signup')}>
               Explore Niriksha <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
-            <Button size="lg" variant="outline" className="border-white/20 text-white hover:bg-white/10 text-lg px-8 py-6" onClick={() => handleDemoLogin('SUPERVISOR')}>
+            <Button size="lg" variant="outline" className="border-white/20 text-white bg-white/10 hover:bg-white/20 text-lg px-8 py-6" onClick={() => handleDemoLogin('SUPERVISOR')}>
               <Play className="mr-2 w-5 h-5" /> Try Demo
             </Button>
           </div>
@@ -252,14 +266,14 @@ export default function Home() {
               Jump into a fully functional demo with pre-loaded data. No sign-up required.
               Choose your role and see the platform in action.
             </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Button size="lg" className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white" onClick={() => handleDemoLogin('ADMIN')}>
+            <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-4">
+              <Button size="lg" className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white shadow-lg" onClick={() => handleDemoLogin('ADMIN')}>
                 <Users className="mr-2 w-5 h-5" /> Admin Demo
               </Button>
-              <Button size="lg" className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white" onClick={() => handleDemoLogin('SUPERVISOR')}>
+              <Button size="lg" className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white shadow-lg" onClick={() => handleDemoLogin('SUPERVISOR')}>
                 <Shield className="mr-2 w-5 h-5" /> Supervisor Demo
               </Button>
-              <Button size="lg" className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white" onClick={() => handleDemoLogin('INSPECTOR')}>
+              <Button size="lg" className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-lg" onClick={() => handleDemoLogin('INSPECTOR')}>
                 <Camera className="mr-2 w-5 h-5" /> Inspector Demo
               </Button>
             </div>

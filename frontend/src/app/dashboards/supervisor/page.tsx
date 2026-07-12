@@ -370,7 +370,7 @@ export default function SupervisorDashboard() {
             <p className="text-white/50">AI-augmented inspection review and performance monitoring</p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" className="border-white/20 text-white hover:bg-white/10" onClick={fetchAllData}>
+            <Button variant="outline" className="border-white/20 text-white bg-white/5 hover:bg-white/10" onClick={fetchAllData}>
               <RefreshCw className="mr-2 h-4 w-4" /> Refresh
             </Button>
             <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
@@ -415,7 +415,7 @@ export default function SupervisorDashboard() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" className="border-white/20 text-white" onClick={() => setAssignDialogOpen(false)}>Cancel</Button>
+                  <Button variant="outline" className="border-white/20 text-white bg-white/5 hover:bg-white/10" onClick={() => setAssignDialogOpen(false)}>Cancel</Button>
                   <Button className="bg-gradient-to-r from-purple-500 to-pink-500 text-white" onClick={handleAssign}>Assign</Button>
                 </DialogFooter>
               </DialogContent>
@@ -794,7 +794,7 @@ export default function SupervisorDashboard() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" className="border-white/20 text-white" onClick={() => setReviewDialog({ open: false, inspection: null })}>Cancel</Button>
+                  <Button variant="outline" className="border-white/20 text-white bg-white/5 hover:bg-white/10" onClick={() => setReviewDialog({ open: false, inspection: null })}>Cancel</Button>
                   <Button
                     className={reviewAction === 'APPROVE' ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-red-500 hover:bg-red-600 text-white'}
                     onClick={handleReview}
@@ -1081,7 +1081,7 @@ export default function SupervisorDashboard() {
             <div className="flex justify-between items-center">
               <p className="text-white/50">{unreadCount} unread notifications</p>
               {unreadCount > 0 && (
-                <Button variant="outline" className="border-white/20 text-white hover:bg-white/10" onClick={handleMarkAllRead}>
+                <Button variant="outline" className="border-white/20 text-white bg-white/5 hover:bg-white/10" onClick={handleMarkAllRead}>
                   Mark All Read
                 </Button>
               )}

@@ -45,7 +45,8 @@ export default function SignupPage() {
 
   const handleDemoMode = () => {
     enterDemoMode(demoRole)
-    router.push('/')
+    const path = demoRole === 'ADMIN' ? '/dashboards/admin' : demoRole === 'SUPERVISOR' ? '/dashboards/supervisor' : '/dashboards/inspector'
+    router.push(path)
   }
 
   return (
@@ -181,7 +182,7 @@ export default function SignupPage() {
 
               <Button 
                 type="submit" 
-                className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-medium"
+                className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-medium shadow-md"
                 disabled={loading}
               >
                 {loading ? 'Creating account...' : (
@@ -214,8 +215,7 @@ export default function SignupPage() {
                 
                 <Button 
                   type="button" 
-                  variant="outline" 
-                  className="w-full h-11 border-2 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                  className="w-full h-11 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium shadow-md"
                   onClick={handleDemoMode}
                 >
                   🎮 Try Demo Mode
