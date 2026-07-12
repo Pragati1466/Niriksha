@@ -14,39 +14,55 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Plus, Users, Building2, FileText, Settings, BarChart3 } from 'lucide-react'
 
 export default function AdminDashboard() {
-  const { user, loading } = useAuth()
+  const { user, loading, isDemoMode } = useAuth()
   const router = useRouter()
   const [users, setUsers] = useState<any[]>([])
   const [departments, setDepartments] = useState<any[]>([])
   const [loadingData, setLoadingData] = useState(true)
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'ADMIN')) {
+    if (!loading && (!user || user.role !== 'ADMIN') && !isDemoMode) {
       router.push('/auth/login')
     }
-  }, [user, loading, router])
+  }, [user, loading, router, isDemoMode])
 
   useEffect(() => {
-    if (user) {
+    if (user || isDemoMode) {
       fetchData()
     }
-  }, [user])
+  }, [user, isDemoMode])
 
   const fetchData = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const [usersRes, deptsRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/departments`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-      ])
-      const usersData = await usersRes.json()
-      const deptsData = await deptsRes.json()
-      setUsers(usersData || [])
-      setDepartments(deptsData || [])
+      if (isDemoMode) {
+        // Use mock data for demo mode
+        setUsers([
+          { id: '1', name: 'John Smith', email: 'john@example.com', role: 'INSPECTOR', department: { name: 'Health' } },
+          { id: '2', name: 'Sarah Johnson', email: 'sarah@example.com', role: 'INSPECTOR', department: { name: 'Safety' } },
+          { id: '3', name: 'Mike Davis', email: 'mike@example.com', role: 'SUPERVISOR', department: { name: 'Health' } },
+          { id: '4', name: 'Emily Brown', email: 'emily@example.com', role: 'ADMIN', department: null },
+        ])
+        setDepartments([
+          { id: '1', name: 'Health', description: 'Health and safety inspections', sites: [{ length: 45 }], users: [{ length: 12 }] },
+          { id: '2', name: 'Safety', description: 'Workplace safety inspections', sites: [{ length: 32 }], users: [{ length: 8 }] },
+          { id: '3', name: 'Environment', description: 'Environmental compliance inspections', sites: [{ length: 28 }], users: [{ length: 6 }] },
+          { id: '4', name: 'Building', description: 'Building code inspections', sites: [{ length: 51 }], users: [{ length: 15 }] },
+        ])
+      } else {
+        const token = localStorage.getItem('token')
+        const [usersRes, deptsRes] = await Promise.all([
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/departments`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ])
+        const usersData = await usersRes.json()
+        const deptsData = await deptsRes.json()
+        setUsers(usersData || [])
+        setDepartments(deptsData || [])
+      }
     } catch (error) {
       console.error('Failed to fetch data:', error)
     } finally {
