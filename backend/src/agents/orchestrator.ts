@@ -26,9 +26,12 @@ export class AgentOrchestrator {
   // Decision Node: Determine Next Agent
   // Uses WatsonX LLM for dynamic, context-aware routing when available
   // Falls back to deterministic rule-based routing
-  private determineNextAgent(state: AgentState): string {
-    const deterministicNext = this.deterministicRouting(state)
-    return deterministicNext
+  private async determineNextAgent(state: AgentState): Promise<string> {
+    try {
+      return await this.llmRouting(state)
+    } catch {
+      return this.deterministicRouting(state)
+    }
   }
 
   // LLM-powered dynamic routing
@@ -100,8 +103,8 @@ export class AgentOrchestrator {
   }
 
   // Decision Node: Should Continue Workflow
-  private shouldContinueWorkflow(state: AgentState): boolean {
-    const nextAgent = this.determineNextAgent(state)
+  private async shouldContinueWorkflow(state: AgentState): Promise<boolean> {
+    const nextAgent = await this.determineNextAgent(state)
     return nextAgent !== 'complete'
   }
 
@@ -160,8 +163,8 @@ export class AgentOrchestrator {
 
     workflowLog.push(`Starting inspection workflow for inspection ${state.inspectionId}`)
 
-    while (this.shouldContinueWorkflow(currentState)) {
-      const nextAgent = this.determineNextAgent(currentState)
+    while (await this.shouldContinueWorkflow(currentState)) {
+      const nextAgent = await this.determineNextAgent(currentState)
       workflowLog.push(`Executing agent: ${nextAgent}`)
 
       try {
