@@ -1,6 +1,7 @@
 // Trust Evolution Agent
 import { AgentState, TrustScoreResult, TrustFactor } from './types'
 import { complianceMemory } from '../services/complianceMemory'
+import prisma from '../utils/prisma'
 
 export class TrustEvolutionAgent {
   private config = {
@@ -36,7 +37,8 @@ export class TrustEvolutionAgent {
     // Calculate new score
     let scoreChange = 0
     factors.forEach(factor => {
-      scoreChange += factor.impact * this.scoreWeights[factor.type as keyof typeof this.scoreWeights]
+      const weightKey = (factor.type === 'SUPERVISOR_OVERRIDE' ? 'supervisorOverride' : factor.type.toLowerCase()) as keyof typeof this.scoreWeights
+      scoreChange += factor.impact * this.scoreWeights[weightKey]
     })
 
     const currentScore = Math.max(0, Math.min(100, previousScore + scoreChange))
@@ -58,6 +60,33 @@ export class TrustEvolutionAgent {
     }
 
     await complianceMemory.recordTrustScore(inspectorId, result)
+    // Persist the result produced above. This intentionally does not alter the
+    // Trust Evolution calculation or its in-memory/compliance-memory history.
+    await prisma.$transaction([
+      prisma.trustScore.upsert({
+        where: { inspectorId },
+        create: {
+          inspectorId,
+          score: currentScore,
+          totalInspections: history.filter(item => item.type === 'INSPECTION_SUBMISSION').length,
+          flaggedInspections: history.filter(item => item.type === 'REALITY_VERIFICATION' && item.data?.verified === false).length,
+        },
+        update: {
+          score: currentScore,
+          totalInspections: history.filter(item => item.type === 'INSPECTION_SUBMISSION').length,
+          flaggedInspections: history.filter(item => item.type === 'REALITY_VERIFICATION' && item.data?.verified === false).length,
+          lastUpdated: new Date(),
+        },
+      }),
+      prisma.trustHistory.create({
+        data: {
+          inspectorId,
+          score: currentScore,
+          previousScore,
+          reasons: factors as any,
+        },
+      }),
+    ])
 
     return result
   }
