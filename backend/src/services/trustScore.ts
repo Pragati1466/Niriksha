@@ -1,45 +1,9 @@
 import prisma from '../utils/prisma'
+import { agentOrchestrator } from '../agents/orchestrator'
 
 export const calculateTrustScore = async (inspectorId: string) => {
-  const inspections = await prisma.inspection.findMany({
-    where: { inspectorId },
-    include: { violations: true, reviews: true },
-  })
-
-  if (inspections.length === 0) {
-    return await prisma.trustScore.upsert({
-      where: { inspectorId },
-      create: { inspectorId, score: 100, totalInspections: 0, flaggedInspections: 0 },
-      update: { score: 100, totalInspections: 0, flaggedInspections: 0 },
-    })
-  }
-
-  const totalInspections = inspections.length
-  const flaggedInspections = inspections.filter(
-    i => {
-      try {
-        const analysis = i.aiAnalysis ? JSON.parse(i.aiAnalysis) : null
-        return analysis?.flaggedItems?.length > 0 || i.reviews.some(r => r.approved === false)
-      } catch {
-        return i.reviews.some(r => r.approved === false)
-      }
-    }
-  ).length
-
-  const avgConfidence = inspections.reduce((acc, i) => acc + (i.confidenceScore || 0), 0) / totalInspections
-  const approvedRate = inspections.filter(i => i.status === 'APPROVED').length / totalInspections
-
-  const score = Math.round(
-    (avgConfidence * 0.4) +
-    (approvedRate * 100 * 0.4) +
-    ((1 - flaggedInspections / totalInspections) * 100 * 0.2)
-  )
-
-  return await prisma.trustScore.upsert({
-    where: { inspectorId },
-    create: { inspectorId, score, totalInspections, flaggedInspections },
-    update: { score, totalInspections, flaggedInspections, lastUpdated: new Date() },
-  })
+  await agentOrchestrator.updateTrustScore(inspectorId)
+  return prisma.trustScore.findUniqueOrThrow({ where: { inspectorId } })
 }
 
 export const getTrustScore = async (inspectorId: string) => {
