@@ -16,7 +16,7 @@ interface MemoryEventInput {
   actorId?: string | null
   reason?: string | null
   sourceRecordId?: string | null
-  metadata?: Record<string, any>
+  metadata?: string
   occurredAt?: Date
 }
 
@@ -57,7 +57,7 @@ class ComplianceMemoryService {
         eventType: 'VERIFICATION_COMPLETED', outcome: input.verification?.verified ? 'COMPLIANT' : 'UNVERIFIED',
         confidence: input.verification?.confidenceScore ?? null,
         sourceRecordId: `verification-complete:${inspection.id}:${timestamp}`,
-        metadata: { confidenceScore: input.verification?.confidenceScore, explanation: input.verification?.explanation },
+        metadata: JSON.stringify({ confidenceScore: input.verification?.confidenceScore, explanation: input.verification?.explanation }),
       } }),
       ...findings.map((finding, index) => prisma.complianceMemoryEvent.create({ data: {
         inspectionId: inspection.id, siteId: inspection.siteId, actorId: input.actorId,
@@ -72,15 +72,15 @@ class ComplianceMemoryService {
         eventType: input.action === 'SUBMISSION_OVERRIDE' ? 'SUBMISSION_OVERRIDE' : 'INSPECTION_OUTCOME',
         outcome: input.action, reason: input.reason || null,
         sourceRecordId: `inspection-outcome:${inspection.id}:${timestamp}:${input.action}`,
-        metadata: { confidenceScore: input.verification?.confidenceScore },
+        metadata: JSON.stringify({ confidenceScore: input.verification?.confidenceScore }),
       } }),
     ])
 
-    await Promise.all(inspection.reviews.map(review => prisma.complianceMemoryEvent.create({ data: {
+    await Promise.all(inspection.reviews.map((review: any) => prisma.complianceMemoryEvent.create({ data: {
       inspectionId: inspection.id, siteId: inspection.siteId, actorId: review.reviewerId,
       eventType: 'REVIEW_DECISION', outcome: review.approved === true ? 'APPROVED' : review.approved === false ? 'REJECTED' : 'PENDING',
       reason: review.comments, sourceRecordId: review.id, occurredAt: review.reviewedAt,
-    } }).catch(error => { if (error.code !== 'P2002') throw error })))
+    } }).catch((error: any) => { if (error.code !== 'P2002') throw error })))
   }
 
   async recordCorrections(inspectionId: string, actorId: string, checklists: Array<{ id: string, itemLabel: string, status: string, notes?: string | null, evidence?: string | null }>) {
@@ -95,25 +95,25 @@ class ComplianceMemoryService {
 
   async recordTrustScore(inspectorId: string, result: TrustScoreResult) {
     return this.recordEvent({ eventType: 'TRUST_SCORE', outcome: result.riskLevel, actorId: inspectorId,
-      sourceRecordId: `trust-score:${inspectorId}:${Date.now()}`, metadata: { type: 'TRUST_SCORE', data: result } })
+      sourceRecordId: `trust-score:${inspectorId}:${Date.now()}`, metadata: JSON.stringify({ type: 'TRUST_SCORE', data: result }) })
   }
 
   async recordRiskEvent(siteId: string, result: unknown) {
     return this.recordEvent({ siteId, eventType: 'SYSTEMIC_RISK_DISCOVERED', outcome: 'DISCOVERED',
-      sourceRecordId: `risk:${siteId}:${Date.now()}`, metadata: { result: JSON.parse(JSON.stringify(result)) } })
+      sourceRecordId: `risk:${siteId}:${Date.now()}`, metadata: JSON.stringify({ result: JSON.parse(JSON.stringify(result)) }) })
   }
 
   async recordWorkflowEvent(inspectionId: string, log: string[]) {
     const inspection = await prisma.inspection.findUnique({ where: { id: inspectionId }, select: { siteId: true } })
     if (!inspection) return
-    return this.recordEvent({ inspectionId, siteId: inspection.siteId, eventType: 'WORKFLOW_COMPLETED', outcome: 'COMPLETED', metadata: { log } })
+    return this.recordEvent({ inspectionId, siteId: inspection.siteId, eventType: 'WORKFLOW_COMPLETED', outcome: 'COMPLETED', metadata: JSON.stringify({ log }) })
   }
 
   async getInspectorMemory(inspectorId: string): Promise<any[]> {
     const events = await prisma.complianceMemoryEvent.findMany({ where: { actorId: inspectorId }, orderBy: { occurredAt: 'asc' } })
-    return events.map(event => ({
+    return events.map((event: any) => ({
       type: event.eventType === 'VERIFICATION_COMPLETED' ? 'REALITY_VERIFICATION' : event.eventType,
-      data: event.metadata && typeof event.metadata === 'object' && 'data' in event.metadata ? (event.metadata as any).data : { verified: event.outcome === 'COMPLIANT', ...event },
+      data: event.metadata && typeof event.metadata === 'string' ? JSON.parse(event.metadata) : { verified: event.outcome === 'COMPLIANT', ...event },
       timestamp: event.occurredAt,
     }))
   }
@@ -131,7 +131,7 @@ class ComplianceMemoryService {
       where: { siteId, outcome: 'NON_COMPLIANT', occurredAt: { gte: since }, checklistItemId: { not: null } },
       _count: { _all: true }, having: { checklistItemId: { _count: { gte: 2 } } },
     })
-    return groups.map(group => ({ checklistItemId: group.checklistItemId!, checklistLabel: group.checklistLabel, occurrences: group._count._all, repeatedViolation: true }))
+    return groups.map((group: any) => ({ checklistItemId: group.checklistItemId!, checklistLabel: group.checklistLabel, occurrences: group._count._all, repeatedViolation: true }))
   }
 
   async getInstitutionHistory(siteId: string) {
@@ -140,8 +140,8 @@ class ComplianceMemoryService {
       prisma.complianceMemoryEvent.findMany({ where: { siteId }, orderBy: { occurredAt: 'desc' } }), this.findRepeatedIssues(siteId),
     ])
     return { inspections, recurringIssues,
-      unresolvedFindings: events.filter(event => event.outcome === 'NON_COMPLIANT' || event.outcome === 'UNVERIFIED'),
-      correctionPatterns: events.filter(event => event.eventType === 'HUMAN_CORRECTION') }
+      unresolvedFindings: events.filter((event: any) => event.outcome === 'NON_COMPLIANT' || event.outcome === 'UNVERIFIED'),
+      correctionPatterns: events.filter((event: any) => event.eventType === 'HUMAN_CORRECTION') }
   }
 
   async getMemoryStats() {

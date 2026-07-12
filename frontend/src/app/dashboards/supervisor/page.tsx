@@ -8,15 +8,30 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Inspection } from '@/types'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Inspection, User, Site, InspectionTemplate } from '@/types'
 import { formatDate } from '@/lib/utils'
-import { AlertTriangle, CheckCircle, XCircle, TrendingUp, Users, FileText, Eye } from 'lucide-react'
+import { getApiUrl } from '@/lib/api'
+import { AlertTriangle, CheckCircle, XCircle, TrendingUp, Users, FileText, Eye, Plus, Calendar } from 'lucide-react'
 
 export default function SupervisorDashboard() {
   const { user, loading, isDemoMode } = useAuth()
   const router = useRouter()
   const [inspections, setInspections] = useState<Inspection[]>([])
   const [loadingInspections, setLoadingInspections] = useState(true)
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false)
+  const [inspectors, setInspectors] = useState<User[]>([])
+  const [sites, setSites] = useState<Site[]>([])
+  const [templates, setTemplates] = useState<InspectionTemplate[]>([])
+  const [assignmentForm, setAssignmentForm] = useState({
+    siteId: '',
+    templateId: '',
+    inspectorId: '',
+    scheduledDate: '',
+    notes: ''
+  })
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERVISOR') && !isDemoMode) {
@@ -27,8 +42,40 @@ export default function SupervisorDashboard() {
   useEffect(() => {
     if (user || isDemoMode) {
       fetchInspections()
+      fetchAssignmentData()
     }
   }, [user, isDemoMode])
+
+  const fetchAssignmentData = async () => {
+    try {
+      if (isDemoMode) {
+        setInspectors([
+          { id: 'insp1', name: 'John Smith', email: 'john@example.com', role: 'INSPECTOR', createdAt: '2024-01-01' },
+          { id: 'insp2', name: 'Sarah Johnson', email: 'sarah@example.com', role: 'INSPECTOR', createdAt: '2024-01-01' }
+        ])
+        setSites([
+          { id: 'site1', name: 'Restaurant A', address: '123 Main St', departmentId: 'dept1' },
+          { id: 'site2', name: 'Factory B', address: '456 Industrial Ave', departmentId: 'dept2' }
+        ])
+        setTemplates([
+          { id: 'templ1', name: 'Health Inspection', departmentId: 'dept1', checklistItems: [] },
+          { id: 'templ2', name: 'Safety Inspection', departmentId: 'dept2', checklistItems: [] }
+        ] as any)
+      } else {
+        const token = localStorage.getItem('token')
+        const [inspectorsRes, sitesRes, templatesRes] = await Promise.all([
+          fetch(`${getApiUrl()}/api/users?role=INSPECTOR`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${getApiUrl()}/api/sites`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${getApiUrl()}/api/templates`, { headers: { Authorization: `Bearer ${token}` } })
+        ])
+        setInspectors(await inspectorsRes.json())
+        setSites(await sitesRes.json())
+        setTemplates(await templatesRes.json())
+      }
+    } catch (error) {
+      console.error('Failed to fetch assignment data:', error)
+    }
+  }
 
   const fetchInspections = async () => {
     try {
@@ -74,7 +121,7 @@ export default function SupervisorDashboard() {
         ])
       } else {
         const token = localStorage.getItem('token')
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/inspections?status=UNDER_REVIEW`, {
+        const response = await fetch(`${getApiUrl()}/api/inspections?status=UNDER_REVIEW`, {
           headers: { Authorization: `Bearer ${token}` },
         })
         const data = await response.json()
@@ -89,8 +136,19 @@ export default function SupervisorDashboard() {
 
   const handleReview = async (inspectionId: string, approved: boolean) => {
     try {
+      if (isDemoMode) {
+        // In demo mode, update the local state
+        setInspections(inspections.map(i => 
+          i.id === inspectionId 
+            ? { ...i, status: approved ? 'APPROVED' : 'REJECTED' as const }
+            : i
+        ))
+        alert(`Inspection ${approved ? 'approved' : 'rejected'} successfully (demo mode)`)
+        return
+      }
+
       const token = localStorage.getItem('token')
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/inspections/${inspectionId}`, {
+      await fetch(`${getApiUrl()}/api/inspections/${inspectionId}`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -103,6 +161,61 @@ export default function SupervisorDashboard() {
       fetchInspections()
     } catch (error) {
       console.error('Failed to review inspection:', error)
+    }
+  }
+
+  const handleAssign = async () => {
+    try {
+      if (isDemoMode) {
+        // In demo mode, just show a success message and add a mock inspection
+        const newInspection = {
+          id: `demo-${Date.now()}`,
+          siteId: assignmentForm.siteId,
+          site: sites.find(s => s.id === assignmentForm.siteId)!,
+          inspectorId: assignmentForm.inspectorId,
+          inspector: inspectors.find(i => i.id === assignmentForm.inspectorId)!,
+          templateId: assignmentForm.templateId,
+          template: templates.find(t => t.id === assignmentForm.templateId)!,
+          status: 'ASSIGNED' as const,
+          scheduledDate: assignmentForm.scheduledDate,
+          notes: assignmentForm.notes,
+          confidenceScore: 0,
+          aiAnalysis: {},
+          createdAt: new Date().toISOString(),
+          images: [],
+          checklists: [],
+          violations: []
+        }
+        setInspections([...inspections, newInspection])
+        setAssignDialogOpen(false)
+        setAssignmentForm({ siteId: '', templateId: '', inspectorId: '', scheduledDate: '', notes: '' })
+        alert('Inspection assigned successfully (demo mode)')
+        return
+      }
+
+      const token = localStorage.getItem('token')
+      if (!token) {
+        throw new Error('No authentication token found. Please login again.')
+      }
+
+      const response = await fetch(`${getApiUrl()}/api/inspections`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(assignmentForm),
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to assign inspection')
+      }
+      setAssignDialogOpen(false)
+      setAssignmentForm({ siteId: '', templateId: '', inspectorId: '', scheduledDate: '', notes: '' })
+      fetchInspections()
+    } catch (error) {
+      console.error('Failed to assign inspection:', error)
+      alert(error instanceof Error ? error.message : 'Failed to assign inspection')
     }
   }
 
@@ -125,9 +238,88 @@ export default function SupervisorDashboard() {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Supervisor Dashboard</h1>
-          <p className="text-muted-foreground">Review inspections and manage inspector performance</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Supervisor Dashboard</h1>
+            <p className="text-muted-foreground">Review inspections and manage inspector performance</p>
+          </div>
+          <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+            <DialogTrigger asChild>
+              <Button><Plus className="mr-2 h-4 w-4" />Assign Inspection</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Assign New Inspection</DialogTitle>
+                <DialogDescription>Assign an inspector to a site with a specific template</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="site">Site</Label>
+                  <select
+                    id="site"
+                    className="w-full mt-1 p-2 border rounded"
+                    value={assignmentForm.siteId}
+                    onChange={(e) => setAssignmentForm({ ...assignmentForm, siteId: e.target.value })}
+                  >
+                    <option value="">Select a site</option>
+                    {sites.map((site) => (
+                      <option key={site.id} value={site.id}>{site.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="template">Template</Label>
+                  <select
+                    id="template"
+                    className="w-full mt-1 p-2 border rounded"
+                    value={assignmentForm.templateId}
+                    onChange={(e) => setAssignmentForm({ ...assignmentForm, templateId: e.target.value })}
+                  >
+                    <option value="">Select a template</option>
+                    {templates.map((template) => (
+                      <option key={template.id} value={template.id}>{template.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="inspector">Inspector</Label>
+                  <select
+                    id="inspector"
+                    className="w-full mt-1 p-2 border rounded"
+                    value={assignmentForm.inspectorId}
+                    onChange={(e) => setAssignmentForm({ ...assignmentForm, inspectorId: e.target.value })}
+                  >
+                    <option value="">Select an inspector</option>
+                    {inspectors.map((inspector) => (
+                      <option key={inspector.id} value={inspector.id}>{inspector.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label htmlFor="scheduledDate">Scheduled Date</Label>
+                  <Input
+                    id="scheduledDate"
+                    type="date"
+                    value={assignmentForm.scheduledDate}
+                    onChange={(e) => setAssignmentForm({ ...assignmentForm, scheduledDate: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="notes">Notes</Label>
+                  <Input
+                    id="notes"
+                    value={assignmentForm.notes}
+                    onChange={(e) => setAssignmentForm({ ...assignmentForm, notes: e.target.value })}
+                    placeholder="Optional notes for the inspector"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleAssign}>Assign</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -185,58 +377,73 @@ export default function SupervisorDashboard() {
                 </CardContent>
               </Card>
             ) : (
-              pendingApprovals.map((inspection) => (
-                <Card key={inspection.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle>{inspection.site.name}</CardTitle>
-                        <CardDescription>Inspector: {inspection.inspector.name}</CardDescription>
-                      </div>
-                      <Badge>{inspection.confidenceScore?.toFixed(1)}% Confidence</Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Submitted: {formatDate(inspection.completedDate!)}</span>
-                        <span className="text-muted-foreground">Violations: {inspection.violations.length}</span>
-                      </div>
-                      {inspection.aiAnalysis?.flaggedItems?.length > 0 && (
-                        <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg">
-                          <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                            <AlertTriangle className="inline h-4 w-4 mr-1" />
-                            {inspection.aiAnalysis.flaggedItems.length} items flagged for review
-                          </p>
+              <div className="grid gap-4">
+                {pendingApprovals.map((inspection) => (
+                  <Card key={inspection.id} className="hover:shadow-md transition-shadow">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-xl mb-1">{inspection.site.name}</CardTitle>
+                          <CardDescription className="text-base">
+                            Inspector: {inspection.inspector.name}
+                          </CardDescription>
                         </div>
-                      )}
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          onClick={() => router.push(`/dashboards/supervisor/${inspection.id}`)}
-                          className="flex-1"
-                        >
-                          <Eye className="mr-2 h-4 w-4" />
-                          Review Details
-                        </Button>
-                        <Button
-                          onClick={() => handleReview(inspection.id, true)}
-                          className="flex-1"
-                        >
-                          <CheckCircle className="mr-2 h-4 w-4" />
-                          Approve
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          onClick={() => handleReview(inspection.id, false)}
-                        >
-                          <XCircle className="mr-2 h-4 w-4" />
-                        </Button>
+                        <div className="text-right ml-4">
+                          <div className="text-2xl font-bold text-primary">
+                            {inspection.confidenceScore?.toFixed(1)}%
+                          </div>
+                          <div className="text-xs text-muted-foreground">Confidence</div>
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between text-sm border-t pt-3">
+                          <span className="text-muted-foreground flex items-center">
+                            <Calendar className="mr-2 h-4 w-4" />
+                            Submitted: {formatDate(inspection.completedDate!)}
+                          </span>
+                          <span className="text-muted-foreground">
+                            Violations: {inspection.violations.length}
+                          </span>
+                        </div>
+                        {inspection.aiAnalysis?.flaggedItems?.length > 0 && (
+                          <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                            <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                              <AlertTriangle className="inline h-4 w-4 mr-1" />
+                              {inspection.aiAnalysis.flaggedItems.length} items flagged for review
+                            </p>
+                          </div>
+                        )}
+                        <div className="flex gap-3 pt-2">
+                          <Button
+                            variant="outline"
+                            onClick={() => router.push(`/dashboards/supervisor/${inspection.id}`)}
+                            className="flex-1"
+                          >
+                            <Eye className="mr-2 h-4 w-4" />
+                            Review Details
+                          </Button>
+                          <Button
+                            onClick={() => handleReview(inspection.id, true)}
+                            className="flex-1 bg-green-600 hover:bg-green-700"
+                          >
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Approve
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            onClick={() => handleReview(inspection.id, false)}
+                            className="bg-red-600 hover:bg-red-700"
+                          >
+                            <XCircle className="mr-2 h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             )}
           </TabsContent>
 
@@ -349,59 +556,68 @@ export default function SupervisorDashboard() {
                 <CardContent>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm">Critical</span>
-                      <span className="font-bold">12</span>
+                      <span className="text-sm text-red-600 font-medium">Critical</span>
+                      <span className="font-bold text-red-600">12</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-red-600 h-2 rounded-full" style={{ width: '12%' }}></div>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm">High</span>
-                      <span className="font-bold">28</span>
+                      <span className="text-sm text-orange-600 font-medium">High</span>
+                      <span className="font-bold text-orange-600">28</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-orange-600 h-2 rounded-full" style={{ width: '28%' }}></div>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm">Medium</span>
-                      <span className="font-bold">45</span>
+                      <span className="text-sm text-yellow-600 font-medium">Medium</span>
+                      <span className="font-bold text-yellow-600">45</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-yellow-600 h-2 rounded-full" style={{ width: '45%' }}></div>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm">Low</span>
-                      <span className="font-bold">67</span>
+                      <span className="text-sm text-green-600 font-medium">Low</span>
+                      <span className="font-bold text-green-600">67</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-green-600 h-2 rounded-full" style={{ width: '67%' }}></div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="md:col-span-2">
                 <CardHeader>
                   <CardTitle>AI Accuracy</CardTitle>
                   <CardDescription>Reality verification performance</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center">
-                    <p className="text-4xl font-bold">94.2%</p>
-                    <p className="text-sm text-muted-foreground mt-2">Overall accuracy rate</p>
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-center">
+                      <div className="text-6xl font-bold text-primary mb-2">94.2%</div>
+                      <div className="text-sm text-muted-foreground">Overall accuracy rate</div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="md:col-span-2">
                 <CardHeader>
                   <CardTitle>Department Performance</CardTitle>
                   <CardDescription>Inspection completion by department</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {[
-                      { dept: 'Health', rate: 92 },
-                      { dept: 'Safety', rate: 88 },
-                      { dept: 'Environment', rate: 95 },
-                      { dept: 'Building', rate: 85 },
+                      { name: 'Health', percentage: 92, color: 'bg-green-500' },
+                      { name: 'Safety', percentage: 88, color: 'bg-yellow-500' },
+                      { name: 'Environment', percentage: 95, color: 'bg-green-500' },
+                      { name: 'Building', percentage: 85, color: 'bg-orange-500' },
                     ].map((dept) => (
-                      <div key={dept.dept} className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>{dept.dept}</span>
-                          <span>{dept.rate}%</span>
-                        </div>
-                        <div className="w-full h-2 bg-gray-200 rounded-full">
-                          <div
-                            className="h-2 bg-primary rounded-full"
-                            style={{ width: `${dept.rate}%` }}
-                          />
+                      <div key={dept.name} className="text-center">
+                        <div className="text-3xl font-bold mb-1">{dept.percentage}%</div>
+                        <div className="text-sm text-muted-foreground mb-2">{dept.name}</div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className={`${dept.color} h-2 rounded-full`} style={{ width: `${dept.percentage}%` }}></div>
                         </div>
                       </div>
                     ))}

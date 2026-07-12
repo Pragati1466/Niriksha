@@ -1,12 +1,17 @@
 // Reality Verification Agent
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import Groq from 'groq-sdk'
+import OpenAI from 'openai'
 import { promises as fs } from 'fs'
 import path from 'path'
 import { AgentState, RealityVerificationResult, Inconsistency } from './types'
 
 export class RealityVerificationAgent {
-  private genAI: GoogleGenerativeAI
-  private model: any
+  private genAI: GoogleGenerativeAI | null = null
+  private geminiModel: any = null
+  private groq: Groq | null = null
+  private openrouter: OpenAI | null = null
+  private aiProvider: 'openrouter' | 'groq' | 'gemini' | 'none' = 'none'
   private config = {
     name: 'reality-verification',
     version: '1.0.0',
@@ -17,8 +22,26 @@ export class RealityVerificationAgent {
   }
 
   constructor() {
-    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-    this.model = this.genAI.getGenerativeModel({ model: 'gemini-3.5-flash' })
+    // Priority: OpenRouter > Groq > Gemini
+    if (process.env.OPENROUTER_API_KEY) {
+      this.openrouter = new OpenAI({
+        apiKey: process.env.OPENROUTER_API_KEY,
+        baseURL: 'https://openrouter.ai/api/v1',
+      })
+      this.aiProvider = 'openrouter'
+      console.log('RealityVerificationAgent: Using OpenRouter AI')
+    } else if (process.env.GROQ_API_KEY) {
+      this.groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+      this.aiProvider = 'groq'
+      console.log('RealityVerificationAgent: Using Groq AI')
+    } else if (process.env.GEMINI_API_KEY) {
+      this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+      this.geminiModel = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+      this.aiProvider = 'gemini'
+      console.log('RealityVerificationAgent: Using Google Gemini')
+    } else {
+      console.warn('RealityVerificationAgent: No AI API key configured (OPENROUTER_API_KEY, GROQ_API_KEY, or GEMINI_API_KEY)')
+    }
   }
 
   // Tool: Analyze Image
@@ -69,11 +92,49 @@ export class RealityVerificationAgent {
       }
       `
 
-      const imagePart = await this.loadImagePart(imagePath)
-      const result = await this.model.generateContent([prompt, imagePart])
+      let text: string
 
-      const response = await result.response
-      const text = response.text()
+      if (this.aiProvider === 'openrouter' && this.openrouter) {
+        // OpenRouter supports vision models via OpenAI-compatible API
+        const imagePart = await this.loadImagePart(imagePath)
+        const response = await this.openrouter.chat.completions.create({
+          model: 'openai/gpt-4o-mini',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: prompt },
+                { type: 'image_url', image_url: { url: `data:${imagePart.inlineData.mimeType};base64,${imagePart.inlineData.data}` } }
+              ]
+            }
+          ],
+        })
+        text = response.choices[0]?.message?.content || ''
+      } else if (this.aiProvider === 'groq' && this.groq) {
+        // Groq doesn't support image analysis directly, use text-only fallback
+        console.warn('Groq does not support image analysis, using mock verification')
+        return {
+          status: 'UNVERIFIED',
+          compliant: null,
+          confidence: 0.5,
+          observations: ['Image analysis not available with Groq - manual review required'],
+          violations: [],
+        }
+      } else if (this.aiProvider === 'gemini' && this.geminiModel) {
+        const imagePart = await this.loadImagePart(imagePath)
+        const result = await this.geminiModel.generateContent([prompt, imagePart])
+        const response = await result.response
+        text = response.text()
+      } else {
+        // No AI configured, return mock response
+        return {
+          status: 'UNVERIFIED',
+          compliant: null,
+          confidence: 0,
+          observations: ['No AI configured for verification'],
+          violations: [],
+        }
+      }
       
       try {
         return JSON.parse(text)

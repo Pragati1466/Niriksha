@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { User } from '@/types'
+import { getApiUrl } from '@/lib/api'
 
 interface AuthContextType {
   user: User | null
@@ -37,7 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const login = async (email: string, password: string) => {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
+    const response = await fetch(`${getApiUrl()}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -55,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signup = async (name: string, email: string, password: string, role: string) => {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/signup`, {
+    const response = await fetch(`${getApiUrl()}/api/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email, password, role }),
@@ -84,16 +85,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('demoMode', 'true')
     localStorage.setItem('demoRole', role)
     setIsDemoMode(true)
-    // Set a demo user with selected role
-    const demoUser: User = {
-      id: 'demo-user',
-      name: 'Demo User',
-      email: 'demo@niriksha.com',
-      role: role,
-      departmentId: undefined,
-      createdAt: new Date().toISOString()
+    // Use seeded demo users that match the database seed data
+    const demoUsers: Record<string, User> = {
+      'ADMIN': {
+        id: 'admin001',
+        name: 'Rajesh Kumar',
+        email: 'admin@niriksha.gov.in',
+        role: 'ADMIN',
+        departmentId: 'DEPT001',
+        phone: '9876543210',
+        employeeId: 'EMP001',
+        createdAt: new Date().toISOString()
+      },
+      'SUPERVISOR': {
+        id: 'supervisor001',
+        name: 'Priya Sharma',
+        email: 'supervisor@niriksha.gov.in',
+        role: 'SUPERVISOR',
+        departmentId: 'DEPT001',
+        phone: '9876543211',
+        employeeId: 'EMP002',
+        createdAt: new Date().toISOString()
+      },
+      'INSPECTOR': {
+        id: 'inspector001',
+        name: 'Amit Patel',
+        email: 'inspector@niriksha.gov.in',
+        role: 'INSPECTOR',
+        departmentId: 'DEPT001',
+        phone: '9876543212',
+        employeeId: 'EMP003',
+        createdAt: new Date().toISOString()
+      }
     }
-    setUser(demoUser)
+    setUser(demoUsers[role])
   }
 
   return (

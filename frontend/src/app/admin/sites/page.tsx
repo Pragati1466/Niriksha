@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Plus, MapPin, Building2, Edit, Trash2 } from 'lucide-react'
+import { getApiUrl } from '@/lib/api'
 
 export default function SitesPage() {
   const { user, loading } = useAuth()
@@ -35,10 +36,10 @@ export default function SitesPage() {
     try {
       const token = localStorage.getItem('token')
       const [sitesRes, deptsRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sites`, {
+        fetch(`${getApiUrl()}/api/sites`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/departments`, {
+        fetch(`${getApiUrl()}/api/departments`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ])
@@ -56,7 +57,7 @@ export default function SitesPage() {
   const handleAddSite = async (siteData: any) => {
     try {
       const token = localStorage.getItem('token')
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sites`, {
+      await fetch(`${getApiUrl()}/api/sites`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -73,7 +74,7 @@ export default function SitesPage() {
   const handleDeleteSite = async (id: string) => {
     try {
       const token = localStorage.getItem('token')
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sites/${id}`, {
+      await fetch(`${getApiUrl()}/api/sites/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })
