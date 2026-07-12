@@ -45,9 +45,9 @@ export default function LoginPage() {
     <div className="min-h-screen flex">
       {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 p-12 flex-col justify-between">
-        <div>
-          <Logo size="lg" showText={true} className="mb-8" textClassName="text-3xl" variant="light" />
-        </div>
+        <Link href="/">
+          <Logo size="lg" showText={true} className="mb-8 cursor-pointer" textClassName="text-3xl" variant="light" />
+        </Link>
         
         <div className="space-y-8">
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8">
@@ -85,7 +85,9 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
           <div className="lg:hidden flex justify-center mb-8">
-            <Logo size="md" showText={true} className="text-center" />
+            <Link href="/">
+              <Logo size="md" showText={true} className="text-center cursor-pointer" />
+            </Link>
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
