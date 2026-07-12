@@ -1,6 +1,6 @@
 // Trust Evolution Agent
 import { AgentState, TrustScoreResult, TrustFactor } from './types'
-import { agentMemory } from './memory'
+import { complianceMemory } from '../services/complianceMemory'
 
 export class TrustEvolutionAgent {
   private config = {
@@ -22,9 +22,9 @@ export class TrustEvolutionAgent {
   }
 
   // Tool: Calculate Trust Score
-  private calculateTrustScore(inspectorId: string): TrustScoreResult {
-    const history = agentMemory.getInspectorMemory(inspectorId)
-    const trustHistory = agentMemory.getInspectorTrustHistory(inspectorId)
+  private async calculateTrustScore(inspectorId: string): Promise<TrustScoreResult> {
+    const history = await complianceMemory.getInspectorMemory(inspectorId)
+    const trustHistory = await complianceMemory.getInspectorTrustHistory(inspectorId)
     
     const previousScore = trustHistory.length > 0 
       ? trustHistory[trustHistory.length - 1].currentScore 
@@ -57,11 +57,7 @@ export class TrustEvolutionAgent {
       riskLevel,
     }
 
-    // Store in memory
-    agentMemory.setInspectorMemory(inspectorId, {
-      type: 'TRUST_SCORE',
-      data: result,
-    })
+    await complianceMemory.recordTrustScore(inspectorId, result)
 
     return result
   }
@@ -259,7 +255,7 @@ export class TrustEvolutionAgent {
       }
 
       // Calculate new trust score
-      const trustScore = this.calculateTrustScore(inspectorId)
+      const trustScore = await this.calculateTrustScore(inspectorId)
 
       return {
         results: {
@@ -283,7 +279,7 @@ export class TrustEvolutionAgent {
         throw new Error('Inspector ID required for trend analysis')
       }
 
-      const history = agentMemory.getInspectorTrustHistory(inspectorId)
+      const history = await complianceMemory.getInspectorTrustHistory(inspectorId)
       
       if (history.length < 3) {
         return {

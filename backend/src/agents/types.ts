@@ -51,6 +51,7 @@ export interface Inconsistency {
   confidence: number
   reasoning: string
   severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW'
+  evidenceReference?: string
 }
 
 export interface TrustScoreResult {
