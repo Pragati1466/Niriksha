@@ -1,6 +1,6 @@
 export type UserRole = 'INSPECTOR' | 'SUPERVISOR' | 'ADMIN'
 
-export type InspectionStatus = 'ASSIGNED' | 'IN_PROGRESS' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED'
+export type InspectionStatus = 'DRAFT' | 'ASSIGNED' | 'IN_PROGRESS' | 'VERIFYING' | 'VERIFIED' | 'HOLD_FOR_REVIEW' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED'
 
 export type ChecklistStatus = 'COMPLIANT' | 'NON_COMPLIANT' | 'NOT_APPLICABLE' | 'PENDING'
 
@@ -58,10 +58,44 @@ export interface Inspection {
   notes?: string
   confidenceScore?: number
   aiAnalysis?: any
+  submissionOverrideReason?: string
+  submissionOverriddenAt?: string
   createdAt: string
+  updatedAt?: string
   images: InspectionImage[]
   checklists: InspectionChecklist[]
   violations: Violation[]
+  verificationFindings?: VerificationFinding[]
+}
+
+export interface VerificationFinding {
+  id: string
+  inspectionId: string
+  checklistItemId?: string | null
+  checklistLabel: string
+  finding: string
+  confidence: number
+  evidenceReference?: string | null
+  createdAt: string
+  detectedStatus?: string
+}
+
+export interface ComplianceMemoryEvent {
+  id: string
+  eventType: string
+  occurredAt: string
+  inspectionId?: string | null
+  siteId?: string | null
+  checklistItemId?: string | null
+  checklistLabel?: string | null
+  outcome: string
+  finding?: string | null
+  confidence?: number | null
+  evidenceReference?: string | null
+  actorId?: string | null
+  actor?: Pick<User, 'id' | 'name' | 'email' | 'role'> | null
+  reason?: string | null
+  metadata?: Record<string, unknown> | null
 }
 
 export interface InspectionImage {
