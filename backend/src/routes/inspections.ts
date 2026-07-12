@@ -14,6 +14,7 @@ import {
   updateChecklist,
   createViolation,
 } from '../controllers/inspectionController'
+import prisma from '../utils/prisma'
 
 const router = express.Router()
 
@@ -57,5 +58,39 @@ router.put('/:id/images/:imageId', updateImage)
 router.delete('/:id/images/:imageId', deleteImage)
 router.put('/:id/checklist', updateChecklist)
 router.post('/:id/violations', createViolation)
+
+// Get all violations with optional filters (for SLA dashboard)
+router.get('/violations/all', async (req, res) => {
+  try {
+    const { severity, status, limit = 50, offset = 0 } = req.query
+
+    const where: any = {}
+    if (severity) where.severity = severity
+    if (status) where.status = status
+
+    const [violations, total] = await Promise.all([
+      prisma.violation.findMany({
+        where,
+        include: {
+          inspection: {
+            include: {
+              site: { select: { id: true, name: true } },
+              inspector: { select: { id: true, name: true } },
+            },
+          },
+        },
+        orderBy: [{ severity: 'asc' }, { createdAt: 'desc' }],
+        take: Number(limit),
+        skip: Number(offset),
+      }),
+      prisma.violation.count({ where }),
+    ])
+
+    res.json({ violations, total })
+  } catch (error) {
+    console.error('Get violations error:', error)
+    res.status(500).json({ error: 'Failed to fetch violations' })
+  }
+})
 
 export default router

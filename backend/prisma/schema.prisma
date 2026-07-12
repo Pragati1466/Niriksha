@@ -26,6 +26,9 @@ model User {
   assignedInspections Inspection[] @relation("AssignedInspector")
   reviews       Review[]
   complianceMemoryEvents ComplianceMemoryEvent[]
+  trustScore    TrustScore?
+  trustHistory  TrustHistory[]
+  reviewActions ReviewAction[]
   
   @@index([email])
   @@index([role])
@@ -126,6 +129,9 @@ model Inspection {
   reviews         Review[]
   verificationFindings VerificationFinding[]
   complianceMemoryEvents ComplianceMemoryEvent[]
+  ordiAssessments      OrdiAssessment[]
+  reviewActions        ReviewAction[]
+  reportVersions       ReportVersion[]
   
   @@index([inspectorId])
   @@index([siteId])
@@ -258,12 +264,85 @@ model Review {
 model TrustScore {
   id            String    @id @default(uuid())
   inspectorId   String    @unique
+  user          User      @relation(fields: [inspectorId], references: [id])
   score         Float     @default(100)
   totalInspections Int    @default(0)
   flaggedInspections Int  @default(0)
   lastUpdated   DateTime  @default(now())
   
   @@index([inspectorId])
+}
+
+model TrustHistory {
+  id            String   @id @default(uuid())
+  inspectorId   String
+  user          User     @relation(fields: [inspectorId], references: [id])
+  score         Float
+  previousScore Float
+  reasons       String
+  createdAt     DateTime @default(now())
+
+  @@index([inspectorId])
+  @@index([inspectorId, createdAt])
+}
+
+model OrdiAssessment {
+  id            String     @id @default(uuid())
+  inspectionId  String
+  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  score         Float
+  riskLevel     String
+  priority      String
+  trend         String
+  contributors  String
+  createdAt     DateTime   @default(now())
+
+  @@index([inspectionId])
+  @@index([inspectionId, createdAt])
+}
+
+model ReviewAction {
+  id            String     @id @default(uuid())
+  inspectionId  String
+  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  reviewerId    String
+  reviewer      User       @relation(fields: [reviewerId], references: [id])
+  action        String
+  oldStatus     String
+  newStatus     String
+  comments      String?
+  createdAt     DateTime   @default(now())
+
+  @@index([inspectionId])
+  @@index([reviewerId])
+  @@index([inspectionId, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String
+  action     String
+  entityType String
+  entityId   String
+  changes    String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model ReportVersion {
+  id            String     @id @default(uuid())
+  inspectionId  String
+  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  versionType   String
+  content       String
+  authorId      String
+  createdAt     DateTime   @default(now())
+
+  @@index([inspectionId])
+  @@index([inspectionId, createdAt])
 }
 
 model Notification {

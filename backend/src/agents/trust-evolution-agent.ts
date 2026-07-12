@@ -60,33 +60,22 @@ export class TrustEvolutionAgent {
     }
 
     await complianceMemory.recordTrustScore(inspectorId, result)
-    // Persist the result produced above. This intentionally does not alter the
-    // Trust Evolution calculation or its in-memory/compliance-memory history.
-    await prisma.$transaction([
-      prisma.trustScore.upsert({
-        where: { inspectorId },
-        create: {
-          inspectorId,
-          score: currentScore,
-          totalInspections: history.filter(item => item.type === 'INSPECTION_SUBMISSION').length,
-          flaggedInspections: history.filter(item => item.type === 'REALITY_VERIFICATION' && item.data?.verified === false).length,
-        },
-        update: {
-          score: currentScore,
-          totalInspections: history.filter(item => item.type === 'INSPECTION_SUBMISSION').length,
-          flaggedInspections: history.filter(item => item.type === 'REALITY_VERIFICATION' && item.data?.verified === false).length,
-          lastUpdated: new Date(),
-        },
-      }),
-      prisma.trustHistory.create({
-        data: {
-          inspectorId,
-          score: currentScore,
-          previousScore,
-          reasons: factors as any,
-        },
-      }),
-    ])
+    // Persist the trust score to the database
+    await prisma.trustScore.upsert({
+      where: { inspectorId },
+      create: {
+        inspectorId,
+        score: currentScore,
+        totalInspections: history.filter(item => item.type === 'INSPECTION_SUBMISSION').length,
+        flaggedInspections: history.filter(item => item.type === 'REALITY_VERIFICATION' && item.data?.verified === false).length,
+      },
+      update: {
+        score: currentScore,
+        totalInspections: history.filter(item => item.type === 'INSPECTION_SUBMISSION').length,
+        flaggedInspections: history.filter(item => item.type === 'REALITY_VERIFICATION' && item.data?.verified === false).length,
+        lastUpdated: new Date(),
+      },
+    })
 
     return result
   }
