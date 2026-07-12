@@ -54,10 +54,10 @@ export default function SupervisorInspectionDetailPage() {
           aiAnalysis: { flaggedItems: [], summary: 'No major violations detected' },
           createdAt: '2024-01-15',
           images: [
-            { id: 'img1', url: '/uploads/demo-image.jpg', description: 'Kitchen area', uploadedAt: '2024-01-15T10:00:00Z' }
+            { id: 'img1', inspectionId: id || '1', imageUrl: '/uploads/demo-image.jpg', description: 'Kitchen area', uploadedAt: '2024-01-15T10:00:00Z' }
           ],
           checklists: [
-            { id: 'check1', itemId: 'item1', status: 'COMPLIANT', notes: 'All equipment clean', evidenceImageId: 'img1' }
+            { id: 'check1', inspectionId: id || '1', itemId: 'item1', itemLabel: 'Kitchen Cleanliness', status: 'COMPLIANT', required: true, notes: 'All equipment clean' }
           ],
           violations: []
         }
