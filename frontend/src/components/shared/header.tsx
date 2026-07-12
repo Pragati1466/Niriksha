@@ -1,10 +1,10 @@
 'use client'
 
 import { useAuth } from '@/contexts/auth-context'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Shield, LogOut, User, Home, Activity } from 'lucide-react'
+import { Shield, LogOut, User, Home, Activity, Brain, Clock } from 'lucide-react'
 
 export function Header() {
   const { user, isDemoMode, logout } = useAuth()

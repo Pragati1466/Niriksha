@@ -89,7 +89,7 @@ router.get('/queue', async (req: AuthRequest, res) => {
     const rows = await prisma.inspection.findMany({ where, include: { site: { include: { department: true } }, inspector: { include: { trustScore: true } }, verificationFindings: true, checklists: true, violations: true, reviews: true, ordiAssessments: { orderBy: { createdAt: 'desc' }, take: 1 } }, orderBy: { createdAt: 'desc' } })
     const queue = await Promise.all(rows.map(async inspection => {
       const ordi = await calculateOrdi(inspection)
-      if (!inspection.ordiAssessments[0] || Math.abs(inspection.ordiAssessments[0].score - ordi.score) > 0) await prisma.ordiAssessment.create({ data: { inspectionId: inspection.id, ...ordi } })
+      if (!inspection.ordiAssessments[0] || Math.abs(inspection.ordiAssessments[0].score - ordi.score) > 0) await prisma.ordiAssessment.create({ data: { inspectionId: inspection.id, score: ordi.score, riskLevel: ordi.riskLevel, priority: ordi.priority, trend: ordi.trend, contributors: JSON.stringify(ordi.contributors) } })
       return { inspectionId: inspection.id, site: inspection.site.name, inspector: inspection.inspector.name, inspectorId: inspection.inspectorId, department: inspection.site.department.name, submissionDate: inspection.completedDate || inspection.createdAt, status: inspection.status, aiConfidence: inspection.confidenceScore, trustScore: inspection.inspector.trustScore?.score ?? null, evidenceMismatchCount: inspection.verificationFindings.length, ordi }
     }))
     res.json({ queue: risk ? queue.filter(item => item.ordi.riskLevel === risk) : queue.sort((a, b) => b.ordi.score - a.ordi.score) })
@@ -106,13 +106,13 @@ router.post('/inspections/:id/review', async (req: AuthRequest, res) => {
     if (!inspection) return res.status(404).json({ error: 'Inspection not found' })
     const comments = typeof req.body.comments === 'string' ? req.body.comments.trim() : null
     const editedReport = typeof req.body.reportContent === 'string' ? req.body.reportContent : null
-    const finalContent = editedReport || inspection.reportVersions[0]?.content || inspection.reports?.summary ||inspection.aiAnalysis
+    const finalContent = editedReport || inspection.reportVersions[0]?.content || inspection.aiAnalysis
     const result = await prisma.$transaction(async tx => {
       await tx.inspection.update({ where: { id: inspection.id }, data: { status: next } })
       const review = await tx.review.create({ data: { inspectionId: inspection.id, reviewerId: req.user!.id, approved: action === 'APPROVE' ? true : action === 'REJECT' ? false : null, comments } })
       const reviewAction = await tx.reviewAction.create({ data: { inspectionId: inspection.id, reviewerId: req.user!.id, action, oldStatus: inspection.status, newStatus: next, comments } })
-      const auditLog = await tx.auditLog.create({ data: { userId: req.user!.id, action: `REVIEW_${action}`, entityType: 'INSPECTION', entityId: inspection.id, changes: { oldStatus: inspection.status, newStatus: next, comments } } })
-      await tx.complianceMemoryEvent.create({ data: { inspectionId: inspection.id, siteId: inspection.siteId, actorId: req.user!.id, eventType: 'REVIEW_DECISION', outcome: next, reason: comments, sourceRecordId: reviewAction.id, metadata: { action, oldStatus: inspection.status, newStatus: next, reviewId: review.id, auditLogId: auditLog.id } } })
+      const auditLog = await tx.auditLog.create({ data: { userId: req.user!.id, action: `REVIEW_${action}`, entityType: 'INSPECTION', entityId: inspection.id, changes: JSON.stringify({ oldStatus: inspection.status, newStatus: next, comments }) } })
+      await tx.complianceMemoryEvent.create({ data: { inspectionId: inspection.id, siteId: inspection.siteId, actorId: req.user!.id, eventType: 'REVIEW_DECISION', outcome: next, reason: comments, sourceRecordId: reviewAction.id, metadata: JSON.stringify({ action, oldStatus: inspection.status, newStatus: next, reviewId: review.id, auditLogId: auditLog.id }) } })
       if (editedReport) await tx.reportVersion.create({ data: { inspectionId: inspection.id, versionType: 'SUPERVISOR_EDIT', content: editedReport, authorId: req.user!.id } })
       if (action === 'APPROVE' && finalContent) await tx.reportVersion.create({ data: { inspectionId: inspection.id, versionType: 'FINAL_APPROVED', content: finalContent, authorId: req.user!.id } })
       return { review, reviewAction, auditLog }
@@ -131,7 +131,6 @@ router.get('/inspections/:id', async (req: AuthRequest, res) => {
   res.json({ inspection, ordi, aiDraft: inspection.aiAnalysis, finalReport: inspection.reportVersions.find(
   v => v.versionType === 'FINAL_APPROVED' || v.versionType === 'FINAL'
 )?.content ||
-inspection.reports?.summary ||
 null })
 })
 
