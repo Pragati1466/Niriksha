@@ -13,20 +13,24 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { getInitials } from '@/lib/utils'
-import { Moon, Sun } from 'lucide-react'
+import { Moon, Sun, LayoutDashboard, FileText, ShieldCheck, Users } from 'lucide-react'
 import { useTheme } from 'next-themes'
+import { useRouter } from 'next/navigation'
+import { Logo } from '@/components/shared/logo'
 
 export function Header() {
   const { user, logout, isDemoMode } = useAuth()
   const { theme, setTheme } = useTheme()
+  const router = useRouter()
+
+  const handleNavigate = (path: string) => {
+    router.push(path)
+  }
 
   return (
     <header className="border-b bg-background">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-bold text-primary">NIRIKSHA</h1>
-          <span className="text-sm text-muted-foreground">AI Inspection Intelligence</span>
-        </div>
+        <Logo size="md" showText={true} />
 
         <div className="flex items-center space-x-4">
           {isDemoMode && (
@@ -61,6 +65,37 @@ export function Header() {
                   <p className="text-xs leading-none text-muted-foreground">{user?.role}</p>
                 </div>
               </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {user?.role === 'ADMIN' && (
+                <>
+                  <DropdownMenuItem onClick={() => handleNavigate('/dashboards/admin')}>
+                    <Users className="mr-2 h-4 w-4" />
+                    Admin Dashboard
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleNavigate('/dashboards/executive')}>
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    Executive Dashboard
+                  </DropdownMenuItem>
+                </>
+              )}
+              {user?.role === 'SUPERVISOR' && (
+                <>
+                  <DropdownMenuItem onClick={() => handleNavigate('/dashboards/supervisor')}>
+                    <ShieldCheck className="mr-2 h-4 w-4" />
+                    Supervisor Dashboard
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleNavigate('/dashboards/executive')}>
+                    <LayoutDashboard className="mr-2 h-4 w-4" />
+                    Executive Dashboard
+                  </DropdownMenuItem>
+                </>
+              )}
+              {user?.role === 'INSPECTOR' && (
+                <DropdownMenuItem onClick={() => handleNavigate('/dashboards/inspector')}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Inspector Dashboard
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout}>Log out</DropdownMenuItem>
             </DropdownMenuContent>

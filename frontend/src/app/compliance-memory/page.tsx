@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { ComplianceMemoryEvent } from '@/types'
 import { formatDateTime } from '@/lib/utils'
 import { BrainCircuit, ChevronLeft, ChevronRight, Database, ShieldAlert, Users } from 'lucide-react'
+import { getApiUrl } from '@/lib/api'
 
 interface MemoryStats { totalMemoryEntries: number; inspectorHistories: number; riskHistories: number }
 
@@ -26,8 +27,8 @@ export default function ComplianceMemoryPage() {
       const token = localStorage.getItem('token')
       const headers = { Authorization: `Bearer ${token}` }
       const [historyResponse, statsResponse] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agents/memory-history?limit=${limit}&offset=${nextOffset}`, { headers }),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/agents/memory-stats`, { headers }),
+        fetch(`${getApiUrl()}/api/agents/memory-history?limit=${limit}&offset=${nextOffset}`, { headers }),
+        fetch(`${getApiUrl()}/api/agents/memory-stats`, { headers }),
       ])
       const history = await historyResponse.json()
       const statistics = await statsResponse.json()

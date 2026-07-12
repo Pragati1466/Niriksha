@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/components/shared/theme-provider'
 import { AuthProvider } from '@/contexts/auth-context'
+import { ServiceWorkerRegister } from '@/components/shared/service-worker-register'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -26,6 +27,7 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
+            <ServiceWorkerRegister />
             {children}
           </ThemeProvider>
         </AuthProvider>
