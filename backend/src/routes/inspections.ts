@@ -7,6 +7,7 @@ import {
   getInspectionById,
   createInspection,
   updateInspection,
+  submitInspection,
   uploadImage,
   updateChecklist,
   createViolation,
@@ -32,6 +33,7 @@ router.get('/', getInspections)
 router.get('/:id', getInspectionById)
 router.post('/', requireRole(['ADMIN', 'SUPERVISOR']), createInspection)
 router.put('/:id', updateInspection)
+router.post('/:id/submit', submitInspection)
 router.post('/:id/images', upload.single('image'), uploadImage)
 router.put('/:id/checklist', updateChecklist)
 router.post('/:id/violations', createViolation)
