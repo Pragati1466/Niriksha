@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { MessageCircle, X, Send, Minimize2, Maximize2, Bot } from 'lucide-react'
+import { MessageCircle, X, Send, Minimize2, Maximize2, Bot, Mic } from 'lucide-react'
+import { VoiceInterface } from './voice-interface'
 
 interface ChatMessage {
   role: 'user' | 'assistant'
@@ -172,15 +173,18 @@ export function FloatingChatWidget() {
               {/* Input */}
               <div className="bg-white dark:bg-slate-800 border-t border-gray-200 dark:border-slate-700 p-3 rounded-b-xl">
                 <div className="flex gap-2">
-                  <input
-                    ref={inputRef}
-                    className="flex-1 px-3 py-2 text-sm bg-gray-100 dark:bg-slate-700 border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 dark:text-gray-100 placeholder-gray-400"
-                    placeholder="Ask about inspections..."
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    disabled={loading}
-                  />
+                  <div className="flex-1 flex items-center gap-2">
+                    <input
+                      ref={inputRef}
+                      className="flex-1 px-3 py-2 text-sm bg-gray-100 dark:bg-slate-700 border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-900 dark:text-gray-100 placeholder-gray-400"
+                      placeholder="Ask about inspections..."
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      disabled={loading}
+                    />
+                    <VoiceInterface onTranscript={(text) => setInput(text)} disabled={loading} />
+                  </div>
                   <button
                     onClick={sendMessage}
                     disabled={loading || !input.trim()}
