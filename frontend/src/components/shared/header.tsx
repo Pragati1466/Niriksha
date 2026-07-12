@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/contexts/auth-context'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import {
   DropdownMenu,
@@ -16,7 +17,7 @@ import { Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
 
 export function Header() {
-  const { user, logout } = useAuth()
+  const { user, logout, isDemoMode } = useAuth()
   const { theme, setTheme } = useTheme()
 
   return (
@@ -28,6 +29,12 @@ export function Header() {
         </div>
 
         <div className="flex items-center space-x-4">
+          {isDemoMode && (
+            <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+              🎮 Demo Mode
+            </Badge>
+          )}
+
           <Button
             variant="ghost"
             size="icon"
