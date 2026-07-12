@@ -12,6 +12,8 @@ export interface User {
   name: string
   role: UserRole
   departmentId?: string
+  phone?: string
+  employeeId?: string
   createdAt: string
 }
 
@@ -60,6 +62,10 @@ export interface Inspection {
   aiAnalysis?: any
   submissionOverrideReason?: string
   submissionOverriddenAt?: string
+  locationLat?: number
+  locationLng?: number
+  locationAccuracy?: number
+  locationTimestamp?: string
   createdAt: string
   updatedAt?: string
   images: InspectionImage[]
@@ -103,6 +109,7 @@ export interface InspectionImage {
   inspectionId: string
   imageUrl: string
   description?: string
+  metadata?: string
   uploadedAt: string
 }
 
@@ -112,8 +119,9 @@ export interface InspectionChecklist {
   itemId: string
   itemLabel: string
   status: ChecklistStatus
+  required: boolean
   notes?: string
-  evidence?: any
+  evidence?: string[]
 }
 
 export interface Violation {

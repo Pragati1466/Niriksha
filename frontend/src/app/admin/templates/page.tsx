@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Plus, FileText, Building2, Edit, Trash2, CheckCircle, AlertTriangle } from 'lucide-react'
+import { getApiUrl } from '@/lib/api'
 
 export default function TemplatesPage() {
   const { user, loading } = useAuth()
@@ -36,10 +37,10 @@ export default function TemplatesPage() {
     try {
       const token = localStorage.getItem('token')
       const [templatesRes, deptsRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/templates`, {
+        fetch(`${getApiUrl()}/api/templates`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/departments`, {
+        fetch(`${getApiUrl()}/api/departments`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ])
@@ -57,7 +58,7 @@ export default function TemplatesPage() {
   const handleAddTemplate = async (templateData: any) => {
     try {
       const token = localStorage.getItem('token')
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/templates`, {
+      await fetch(`${getApiUrl()}/api/templates`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -74,7 +75,7 @@ export default function TemplatesPage() {
   const handleDeleteTemplate = async (id: string) => {
     try {
       const token = localStorage.getItem('token')
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/templates/${id}`, {
+      await fetch(`${getApiUrl()}/api/templates/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })

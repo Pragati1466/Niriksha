@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -15,8 +15,13 @@ model User {
   role          String    @default("INSPECTOR")
   departmentId  String?
   department    Department? @relation(fields: [departmentId], references: [id])
+  phone         String?
+  employeeId    String?
+  jurisdiction   String?
+  isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  lastLogin     DateTime?
   
   assignedInspections Inspection[] @relation("AssignedInspector")
   reviews       Review[]
@@ -26,11 +31,13 @@ model User {
   @@index([role])
   @@index([departmentId])
   @@index([role, departmentId])
+  @@index([employeeId])
 }
 
 model Department {
   id          String    @id @default(uuid())
   name        String    @unique
+  code        String?
   description String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -40,16 +47,28 @@ model Department {
   templates   InspectionTemplate[]
   
   @@index([name])
+  @@index([code])
 }
 
 model Site {
   id            String    @id @default(uuid())
   name          String
+  ownerName     String?
   address       String
   departmentId  String
   department    Department @relation(fields: [departmentId], references: [id])
   latitude      Float?
   longitude     Float?
+  pincode       String?
+  businessType  String?
+  category      String?
+  contactDetails String?
+  registrationNumber String?
+  registrationDate DateTime?
+  expiryDate    DateTime?
+  status        String    @default("ACTIVE")
+  metadata      String?
+  isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   
@@ -57,6 +76,9 @@ model Site {
   complianceMemoryEvents ComplianceMemoryEvent[]
   
   @@index([departmentId])
+  @@index([status])
+  @@index([registrationNumber])
+  @@index([businessType])
 }
 
 model InspectionTemplate {
@@ -90,6 +112,10 @@ model Inspection {
   aiAnalysis      String?
   submissionOverrideReason String?
   submissionOverriddenAt   DateTime?
+  locationLat     Float?
+  locationLng     Float?
+  locationAccuracy Float?
+  locationTimestamp DateTime?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
   
@@ -143,7 +169,7 @@ model ComplianceMemoryEvent {
   actor             User?       @relation(fields: [actorId], references: [id], onDelete: SetNull)
   reason            String?
   sourceRecordId    String?
-  metadata          Json?       @db.JsonB
+  metadata          String?
   occurredAt        DateTime    @default(now())
 
   @@index([inspectionId])
@@ -159,6 +185,7 @@ model InspectionImage {
   inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
   imageUrl      String
   description   String?
+  metadata      String?
   uploadedAt    DateTime  @default(now())
   
   @@index([inspectionId])
@@ -171,6 +198,7 @@ model InspectionChecklist {
   itemId        String
   itemLabel     String
   status        String    @default("PENDING")
+  required      Boolean   @default(false)
   notes         String?
   evidence      String?
   createdAt     DateTime  @default(now())

@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Plus, Building2, MapPin, Users, Edit, Trash2 } from 'lucide-react'
+import { getApiUrl } from '@/lib/api'
 
 export default function DepartmentsPage() {
   const { user, loading } = useAuth()
@@ -33,7 +34,7 @@ export default function DepartmentsPage() {
   const fetchDepartments = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/departments`, {
+      const response = await fetch(`${getApiUrl()}/api/departments`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       const data = await response.json()
@@ -48,7 +49,7 @@ export default function DepartmentsPage() {
   const handleAddDepartment = async (deptData: any) => {
     try {
       const token = localStorage.getItem('token')
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/departments`, {
+      await fetch(`${getApiUrl()}/api/departments`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -65,7 +66,7 @@ export default function DepartmentsPage() {
   const handleDeleteDepartment = async (id: string) => {
     try {
       const token = localStorage.getItem('token')
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/departments/${id}`, {
+      await fetch(`${getApiUrl()}/api/departments/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       })

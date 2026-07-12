@@ -4,6 +4,10 @@ import prisma from '../utils/prisma'
 import { agentOrchestrator } from '../agents/orchestrator'
 import { AgentState, Inconsistency } from '../agents/types'
 import { complianceMemory } from '../services/complianceMemory'
+import * as fs from 'fs'
+// @ts-ignore
+import * as piexif from 'piexifjs'
+import { uploadToS3, deleteFromS3, generateS3Key } from '../utils/s3'
 
 export const getInspections = async (req: AuthRequest, res: Response) => {
   try {
@@ -46,6 +50,7 @@ export const getInspections = async (req: AuthRequest, res: Response) => {
 export const getInspectionById = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params
+    console.log('Get inspection by ID request:', { id, userId: req.user?.id, userRole: req.user?.role })
 
     const inspection = await prisma.inspection.findUnique({
       where: { id },
@@ -63,39 +68,83 @@ export const getInspectionById = async (req: AuthRequest, res: Response) => {
     })
 
     if (!inspection) {
+      console.log('Inspection not found:', id)
       return res.status(404).json({ error: 'Inspection not found' })
     }
 
+    if (req.user?.role === 'INSPECTOR' && inspection.inspectorId !== req.user.id) {
+      console.log('Permission denied: inspector trying to access another inspection', { 
+        inspectorId: inspection.inspectorId, 
+        userId: req.user.id 
+      })
+      return res.status(403).json({ error: 'Inspectors can only access their own inspections' })
+    }
+
+    console.log('Inspection found and authorized:', id)
     res.json(inspection)
   } catch (error) {
     console.error('Get inspection error:', error)
-    res.status(500).json({ error: 'Internal server error' })
+    res.status(500).json({ error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' })
   }
 }
 
 export const createInspection = async (req: AuthRequest, res: Response) => {
   try {
-    const { siteId, templateId, scheduledDate, notes } = req.body
+    const { siteId, templateId, scheduledDate, notes, inspectorId } = req.body
+
+    console.log('Create inspection request:', { siteId, templateId, scheduledDate, notes, inspectorId, userRole: req.user?.role })
+
+    if (!siteId || !templateId || !scheduledDate) {
+      return res.status(400).json({ error: 'Missing required fields: siteId, templateId, or scheduledDate' })
+    }
+
+    const template = await prisma.inspectionTemplate.findUnique({
+      where: { id: templateId },
+    })
+
+    if (!template) {
+      return res.status(404).json({ error: 'Template not found' })
+    }
+
+    const checklistItems = JSON.parse(template.checklistItems)
+
+    const targetInspectorId = req.user?.role === 'SUPERVISOR' ? inspectorId : req.user!.id
+
+    console.log('Target inspector ID:', targetInspectorId, 'User role:', req.user?.role)
+
+    if (!targetInspectorId) {
+      return res.status(400).json({ error: 'No inspector ID available' })
+    }
 
     const inspection = await prisma.inspection.create({
       data: {
         siteId,
-        inspectorId: req.user!.id,
+        inspectorId: targetInspectorId,
         templateId,
         scheduledDate: new Date(scheduledDate),
         notes,
         status: 'ASSIGNED',
+        checklists: {
+          create: checklistItems.map((item: any) => ({
+            itemId: item.id,
+            itemLabel: item.label,
+            status: 'PENDING',
+            required: item.required || false,
+          })),
+        },
       },
       include: {
         site: true,
         template: true,
+        checklists: true,
+        inspector: true,
       },
     })
 
     res.status(201).json(inspection)
   } catch (error) {
     console.error('Create inspection error:', error)
-    res.status(500).json({ error: 'Internal server error' })
+    res.status(500).json({ error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' })
   }
 }
 
@@ -135,15 +184,52 @@ export const submitInspection = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params
     const overrideReason = typeof req.body.overrideReason === 'string' ? req.body.overrideReason.trim() : ''
+    const { locationLat, locationLng, locationAccuracy, locationTimestamp } = req.body
     const inspection = await prisma.inspection.findUnique({
       where: { id },
-      include: { checklists: true, images: true },
+      include: { checklists: true, images: true, site: true },
     })
 
     if (!inspection) return res.status(404).json({ error: 'Inspection not found' })
     if (req.user?.role === 'INSPECTOR' && inspection.inspectorId !== req.user.id) {
       return res.status(403).json({ error: 'Inspectors can only submit their own inspections' })
     }
+
+    const requiredItems = inspection.checklists.filter(c => c.required)
+    const unansweredRequired = requiredItems.filter(c => c.status === 'PENDING')
+
+    if (unansweredRequired.length > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot submit inspection with unanswered required items',
+        unansweredItems: unansweredRequired.map(c => ({ id: c.id, label: c.itemLabel }))
+      })
+    }
+
+    if (locationLat && locationLng && inspection.site.latitude && inspection.site.longitude) {
+      const distance = calculateDistance(
+        locationLat, locationLng,
+        inspection.site.latitude, inspection.site.longitude
+      )
+      const maxDistance = 500 // 500 meters tolerance
+      if (distance > maxDistance) {
+        return res.status(400).json({ 
+          error: 'Location validation failed',
+          message: `Inspector is ${distance.toFixed(0)}m from site. Maximum allowed distance is ${maxDistance}m.`,
+          distance,
+          maxDistance
+        })
+      }
+    }
+
+    await prisma.inspection.update({
+      where: { id },
+      data: {
+        locationLat,
+        locationLng,
+        locationAccuracy,
+        locationTimestamp: locationTimestamp ? new Date(locationTimestamp) : null,
+      },
+    })
 
     if (overrideReason) {
       if (inspection.status !== 'HOLD_FOR_REVIEW') {
@@ -177,7 +263,7 @@ export const submitInspection = async (req: AuthRequest, res: Response) => {
         id: item.id,
         label: item.itemLabel,
         status: item.status as 'COMPLIANT' | 'NON_COMPLIANT' | 'NOT_APPLICABLE',
-        required: true,
+        required: item.required,
         notes: item.notes || undefined,
       })),
       images: inspection.images.map(image => ({
@@ -254,25 +340,113 @@ export const submitInspection = async (req: AuthRequest, res: Response) => {
   }
 }
 
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371e3 // Earth's radius in meters
+  const φ1 = lat1 * Math.PI / 180
+  const φ2 = lat2 * Math.PI / 180
+  const Δφ = (lat2 - lat1) * Math.PI / 180
+  const Δλ = (lon2 - lon1) * Math.PI / 180
+
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) *
+    Math.sin(Δλ / 2) * Math.sin(Δλ / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+
+  return R * c
+}
+
+function extractExifData(imagePath: string): any {
+  try {
+    const data = fs.readFileSync(imagePath)
+    const exifData = piexif.load(data.toString('base64'))
+    return exifData || {}
+  } catch (error) {
+    console.error('EXIF extraction error:', error)
+    return {}
+  }
+}
+
+function validateImageIntegrity(exifData: any, uploadTimestamp: Date): { valid: boolean; issues: string[] } {
+  const issues: string[] = []
+
+  if (!exifData || Object.keys(exifData).length === 0) {
+    issues.push('No EXIF data found - image may be edited or from screenshot')
+  }
+
+  if (exifData['0th'] && exifData['0th'][piexif.ImageIFD.Software]) {
+    issues.push(`Image processed with software: ${exifData['0th'][piexif.ImageIFD.Software]}`)
+  }
+
+  if (exifData['Exif'] && exifData['Exif'][piexif.ExifIFD.DateTimeOriginal]) {
+    const exifDateStr = exifData['Exif'][piexif.ExifIFD.DateTimeOriginal]
+    const exifDate = new Date(exifDateStr)
+    const timeDiff = Math.abs(uploadTimestamp.getTime() - exifDate.getTime())
+    const maxTimeDiff = 24 * 60 * 60 * 1000 // 24 hours
+
+    if (timeDiff > maxTimeDiff) {
+      issues.push(`EXIF timestamp differs significantly from upload time (${Math.round(timeDiff / (1000 * 60))} minutes)`)
+    }
+  }
+
+  return { valid: issues.length === 0, issues }
+}
+
 export const uploadImage = async (req: AuthRequest, res: Response) => {
   try {
     const { inspectionId } = req.params
-    const { description } = req.body
+    const { description, metadata } = req.body
     const imageUrl = req.file?.path
+    const originalName = req.file?.originalname || 'image.jpg'
+    const mimeType = req.file?.mimetype || 'image/jpeg'
 
     if (!imageUrl) {
       return res.status(400).json({ error: 'No image uploaded' })
     }
 
+    const inspection = await prisma.inspection.findUnique({
+      where: { id: inspectionId },
+      select: { inspectorId: true },
+    })
+
+    if (!inspection) {
+      return res.status(404).json({ error: 'Inspection not found' })
+    }
+
+    if (req.user?.role === 'INSPECTOR' && inspection.inspectorId !== req.user.id) {
+      return res.status(403).json({ error: 'Inspectors can only upload to their own inspections' })
+    }
+
+    const exifData = extractExifData(imageUrl)
+    const integrityCheck = validateImageIntegrity(exifData, new Date())
+
+    const combinedMetadata = {
+      ...metadata ? JSON.parse(metadata) : {},
+      exif: exifData,
+      integrity: integrityCheck,
+    }
+
+    const imageId = crypto.randomUUID()
+    const s3Key = generateS3Key(inspectionId, imageId, originalName)
+    const fileBuffer = fs.readFileSync(imageUrl)
+    
+    let finalImageUrl: string
+    if (process.env.AWS_S3_BUCKET) {
+      finalImageUrl = await uploadToS3(s3Key, fileBuffer, mimeType)
+      fs.unlinkSync(imageUrl)
+    } else {
+      finalImageUrl = imageUrl
+    }
+
     const image = await prisma.inspectionImage.create({
       data: {
         inspectionId,
-        imageUrl,
+        imageUrl: finalImageUrl,
         description,
+        metadata: JSON.stringify(combinedMetadata),
       },
     })
 
-    res.status(201).json(image)
+    res.status(201).json({ ...image, integrityCheck })
   } catch (error) {
     console.error('Upload image error:', error)
     res.status(500).json({ error: 'Internal server error' })
@@ -283,6 +457,19 @@ export const updateChecklist = async (req: AuthRequest, res: Response) => {
   try {
     const { inspectionId } = req.params
     const { checklists } = req.body
+
+    const inspection = await prisma.inspection.findUnique({
+      where: { id: inspectionId },
+      select: { inspectorId: true },
+    })
+
+    if (!inspection) {
+      return res.status(404).json({ error: 'Inspection not found' })
+    }
+
+    if (req.user?.role === 'INSPECTOR' && inspection.inspectorId !== req.user.id) {
+      return res.status(403).json({ error: 'Inspectors can only edit their own inspections' })
+    }
 
     await prisma.$transaction(
       checklists.map((item: any) =>
@@ -314,6 +501,87 @@ export const updateChecklist = async (req: AuthRequest, res: Response) => {
     res.json(updatedChecklists)
   } catch (error) {
     console.error('Update checklist error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+export const updateImage = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id, imageId } = req.params
+    const { description } = req.body
+
+    const inspection = await prisma.inspection.findUnique({
+      where: { id },
+      select: { inspectorId: true },
+    })
+
+    if (!inspection) {
+      return res.status(404).json({ error: 'Inspection not found' })
+    }
+
+    if (req.user?.role === 'INSPECTOR' && inspection.inspectorId !== req.user.id) {
+      return res.status(403).json({ error: 'Inspectors can only update their own inspection images' })
+    }
+
+    const image = await prisma.inspectionImage.update({
+      where: { id: imageId },
+      data: { description },
+    })
+
+    res.json(image)
+  } catch (error) {
+    console.error('Update image error:', error)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+export const deleteImage = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id, imageId } = req.params
+
+    const inspection = await prisma.inspection.findUnique({
+      where: { id },
+      select: { inspectorId: true },
+    })
+
+    if (!inspection) {
+      return res.status(404).json({ error: 'Inspection not found' })
+    }
+
+    if (req.user?.role === 'INSPECTOR' && inspection.inspectorId !== req.user.id) {
+      return res.status(403).json({ error: 'Inspectors can only delete their own inspection images' })
+    }
+
+    const image = await prisma.inspectionImage.findUnique({
+      where: { id: imageId },
+    })
+
+    if (!image) {
+      return res.status(404).json({ error: 'Image not found' })
+    }
+
+    if (image.imageUrl.startsWith('https://') && process.env.AWS_S3_BUCKET) {
+      const s3Key = image.imageUrl.split('/').pop()
+      if (s3Key) {
+        try {
+          await deleteFromS3(`inspections/${id}/${s3Key}`)
+        } catch (error) {
+          console.error('Failed to delete from S3:', error)
+        }
+      }
+    } else {
+      if (fs.existsSync(image.imageUrl)) {
+        fs.unlinkSync(image.imageUrl)
+      }
+    }
+
+    await prisma.inspectionImage.delete({
+      where: { id: imageId },
+    })
+
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Delete image error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 }
