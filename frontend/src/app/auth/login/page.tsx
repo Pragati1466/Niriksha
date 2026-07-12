@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import Link from 'next/link'
-import { Lock, Mail, User, ArrowRight, FileText, Building2 } from 'lucide-react'
+import { Lock, Mail, User, ArrowRight, FileText, Building2, Home } from 'lucide-react'
 import { Logo } from '@/components/shared/logo'
 
 export default function LoginPage() {
@@ -45,9 +45,14 @@ export default function LoginPage() {
     <div className="min-h-screen flex">
       {/* Left Side - Branding */}
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 p-12 flex-col justify-between">
-        <Link href="/">
-          <Logo size="lg" showText={true} className="mb-8 cursor-pointer" textClassName="text-3xl" variant="light" />
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link href="/">
+            <Logo size="lg" showText={true} className="mb-8 cursor-pointer" textClassName="text-3xl" variant="light" />
+          </Link>
+          <Link href="/" className="p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors" title="Go to Home">
+            <Home className="w-5 h-5 text-white" />
+          </Link>
+        </div>
         
         <div className="space-y-8">
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8">
@@ -84,9 +89,12 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center p-8 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
         <div className="w-full max-w-md">
           {/* Mobile Logo */}
-          <div className="lg:hidden flex justify-center mb-8">
+          <div className="lg:hidden flex justify-center mb-8 relative">
             <Link href="/">
               <Logo size="md" showText={true} className="text-center cursor-pointer" />
+            </Link>
+            <Link href="/" className="absolute -top-2 -right-2 p-2 bg-white dark:bg-gray-800 rounded-full shadow-md hover:shadow-lg transition-shadow">
+              <Home className="w-5 h-5 text-purple-600" />
             </Link>
           </div>
 
