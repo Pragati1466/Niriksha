@@ -8,7 +8,7 @@ interface AuthContextType {
   user: User | null
   loading: boolean
   isDemoMode: boolean
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<User>
   signup: (name: string, email: string, password: string, role: string) => Promise<void>
   logout: () => void
   enterDemoMode: (role: 'INSPECTOR' | 'SUPERVISOR' | 'ADMIN') => void
@@ -102,6 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('token', data.token)
     localStorage.setItem('user', JSON.stringify(data.user))
     setUser(data.user)
+    return data.user
   }
 
   const signup = async (name: string, email: string, password: string, role: string) => {
