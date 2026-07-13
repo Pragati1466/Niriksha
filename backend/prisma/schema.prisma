@@ -13,7 +13,6 @@ model User {
   password      String
   name          String
   role          String    @default("INSPECTOR")
-  status        String    @default("APPROVED") // PENDING, APPROVED, REJECTED
   departmentId  String?
   department    Department? @relation(fields: [departmentId], references: [id])
   phone         String?
@@ -36,7 +35,6 @@ model User {
   @@index([departmentId])
   @@index([role, departmentId])
   @@index([employeeId])
-  @@index([status])
 }
 
 model Department {

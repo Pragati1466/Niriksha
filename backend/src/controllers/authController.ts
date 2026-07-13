@@ -3,9 +3,16 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import prisma from '../utils/prisma'
 
+const ALLOWED_SIGNUP_ROLES = ['INSPECTOR']
+
 export const signup = async (req: Request, res: Response) => {
   try {
     const { name, email, password, role } = req.body
+
+    // SECURITY FIX: Only allow INSPECTOR role on public signup
+    if (role && !ALLOWED_SIGNUP_ROLES.includes(role)) {
+      return res.status(403).json({ error: 'Public registration only allows INSPECTOR role. Contact admin for other roles.' })
+    }
 
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -22,15 +29,24 @@ export const signup = async (req: Request, res: Response) => {
         name,
         email,
         password: hashedPassword,
-        role: role || 'INSPECTOR',
-        status: 'PENDING', // Access request — must be approved by admin
+        role: 'INSPECTOR', // Force INSPECTOR role on public signup
       },
     })
 
-    return res.status(201).json({
-      message: 'Registration submitted for approval. An administrator will review your request.',
-      userId: user.id,
-      status: 'PENDING',
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET as string,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } as any
+    )
+
+    res.status(201).json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
     })
   } catch (error) {
     console.error('Signup error:', error)
@@ -48,21 +64,6 @@ export const login = async (req: Request, res: Response) => {
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' })
-    }
-
-    // Check if user is approved
-    if (user.status === 'PENDING') {
-      return res.status(403).json({
-        error: 'Your registration is pending approval. Please wait for an administrator to approve your account.',
-        status: 'PENDING',
-      })
-    }
-
-    if (user.status === 'REJECTED') {
-      return res.status(403).json({
-        error: 'Your registration request has been rejected. Please contact an administrator.',
-        status: 'REJECTED',
-      })
     }
 
     const validPassword = await bcrypt.compare(password, user.password)
@@ -84,7 +85,6 @@ export const login = async (req: Request, res: Response) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        status: user.status,
       },
     })
   } catch (error) {
