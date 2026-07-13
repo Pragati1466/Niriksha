@@ -27,9 +27,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const userData = localStorage.getItem('user')
       const demoMode = localStorage.getItem('demoMode')
       
+      // Clear any invalid data
+      if (userData === 'undefined' || userData === 'null' || !userData) {
+        localStorage.removeItem('user')
+        localStorage.removeItem('token')
+      }
+      
       if (token && userData && userData !== 'undefined' && userData !== 'null') {
         try {
-          setUser(JSON.parse(userData))
+          const parsedUser = JSON.parse(userData)
+          setUser(parsedUser)
         } catch (e) {
           // Invalid stored user data, clear it
           localStorage.removeItem('user')
