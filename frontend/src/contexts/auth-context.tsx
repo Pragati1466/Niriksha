@@ -28,7 +28,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const demoMode = localStorage.getItem('demoMode')
       
       if (token && userData) {
-        setUser(JSON.parse(userData))
+        try {
+          setUser(JSON.parse(userData))
+        } catch (e) {
+          // Invalid stored user data, clear it
+          localStorage.removeItem('user')
+          localStorage.removeItem('token')
+        }
       }
       if (demoMode === 'true') {
         setIsDemoMode(true)
@@ -62,12 +68,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       body: JSON.stringify({ name, email, password, role }),
     })
 
+    const data = await response.json()
+
     if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.error || 'Signup failed')
+      throw new Error(data.error || 'Signup failed')
     }
 
-    const data = await response.json()
     localStorage.setItem('token', data.token)
     localStorage.setItem('user', JSON.stringify(data.user))
     setUser(data.user)
