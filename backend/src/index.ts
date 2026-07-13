@@ -39,14 +39,18 @@ app.use(helmet({
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
-  message: 'Too many requests from this IP, please try again later.',
+  handler: (req, res) => {
+    res.status(429).json({ error: 'Too many requests from this IP, please try again later.' })
+  },
 })
 app.use('/api/', limiter)
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
-  message: 'Too many authentication attempts, please try again later.',
+  handler: (req, res) => {
+    res.status(429).json({ error: 'Too many authentication attempts, please try again later.' })
+  },
 })
 
 app.use(cors({
