@@ -24,12 +24,16 @@ export interface OfflineInspection {
 export class OfflineStorage {
   private queue: QueuedAction[] = []
   private inspections: OfflineInspection[] = []
+  private initialized = false
 
   constructor() {
-    this.loadFromStorage()
+    // Lazy init - don't access localStorage in constructor
   }
 
-  private loadFromStorage() {
+  private ensureInitialized() {
+    if (this.initialized) return
+    this.initialized = true
+    if (typeof localStorage === 'undefined') return
     try {
       this.queue = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]')
       this.inspections = JSON.parse(localStorage.getItem(OFFLINE_INSPECTIONS_KEY) || '[]')
@@ -39,6 +43,7 @@ export class OfflineStorage {
   }
 
   private saveToStorage() {
+    if (typeof localStorage === 'undefined') return
     try {
       localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(this.queue))
       localStorage.setItem(OFFLINE_INSPECTIONS_KEY, JSON.stringify(this.inspections))
@@ -48,6 +53,7 @@ export class OfflineStorage {
   }
 
   enqueueAction(action: Omit<QueuedAction, 'id' | 'timestamp' | 'retryCount'>) {
+    this.ensureInitialized()
     const queuedAction: QueuedAction = {
       ...action,
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -60,29 +66,35 @@ export class OfflineStorage {
   }
 
   removeAction(id: string) {
+    this.ensureInitialized()
     this.queue = this.queue.filter(a => a.id !== id)
     this.saveToStorage()
   }
 
   getQueue(): QueuedAction[] {
+    this.ensureInitialized()
     return [...this.queue]
   }
 
   saveOfflineInspection(inspection: OfflineInspection) {
+    this.ensureInitialized()
     this.inspections.push(inspection)
     this.saveToStorage()
   }
 
   getOfflineInspections(): OfflineInspection[] {
+    this.ensureInitialized()
     return [...this.inspections]
   }
 
   removeOfflineInspection(id: string) {
+    this.ensureInitialized()
     this.inspections = this.inspections.filter(i => i.id !== id)
     this.saveToStorage()
   }
 
   async sync(token: string): Promise<{ success: number; failed: number }> {
+    this.ensureInitialized()
     let success = 0
     let failed = 0
 
@@ -121,10 +133,11 @@ export class OfflineStorage {
   }
 
   isOnline(): boolean {
-    return navigator.onLine
+    return typeof navigator !== 'undefined' ? navigator.onLine : false
   }
 
   getQueueSize(): number {
+    this.ensureInitialized()
     return this.queue.length
   }
 }
