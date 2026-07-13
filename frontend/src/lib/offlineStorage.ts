@@ -31,10 +31,19 @@ export class OfflineStorage {
 
   private loadFromStorage() {
     try {
-      this.queue = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]')
-      this.inspections = JSON.parse(localStorage.getItem(OFFLINE_INSPECTIONS_KEY) || '[]')
+      const queueData = localStorage.getItem(OFFLINE_QUEUE_KEY)
+      const inspectionsData = localStorage.getItem(OFFLINE_INSPECTIONS_KEY)
+      
+      this.queue = queueData && queueData !== 'undefined' && queueData !== 'null' 
+        ? JSON.parse(queueData) 
+        : []
+      this.inspections = inspectionsData && inspectionsData !== 'undefined' && inspectionsData !== 'null'
+        ? JSON.parse(inspectionsData)
+        : []
     } catch (error) {
       console.error('Failed to load offline storage:', error)
+      this.queue = []
+      this.inspections = []
     }
   }
 
