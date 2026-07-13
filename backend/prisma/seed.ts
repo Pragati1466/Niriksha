@@ -3,8 +3,110 @@ import * as fs from 'fs'
 import * as path from 'path'
 import csv from 'csv-parser'
 import bcrypt from 'bcryptjs'
+import { randomUUID } from 'crypto'
 
 const prisma = new PrismaClient()
+
+// ---- Deterministic, per-inspection generators for related records ----
+function hashSeed(str: string): number {
+  let h = 2166136261
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return h >>> 0
+}
+function mulberry32(seed: number) {
+  return function () {
+    seed |= 0; seed = (seed + 0x6d2b79f5) | 0
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+const CHECKLIST_POOL = [
+  'Fire Safety', 'Sanitation', 'Documentation', 'Equipment Maintenance', 'Staff Training',
+  'Waste Disposal', 'Structural Integrity', 'Ventilation', 'Electrical Safety', 'Pest Control',
+  'Water Quality', 'Emergency Exits', 'First Aid', 'Signage', 'Record Keeping',
+]
+const FINDING_REASONS = [
+  'Photo does not match checklist claim', 'Metadata timestamp mismatch', 'GPS location mismatch',
+  'Evidence inconclusive or edited', 'Confidence below threshold',
+]
+const VIOLATION_DESCS = [
+  'Blocked fire exit', 'Expired operating license', 'Improper hazardous waste storage',
+  'Missing safety signage', 'Contaminated food surface', 'Inadequate ventilation',
+  'Unauthorized structural modification', 'Missing first-aid kit',
+]
+const SEVERITIES = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
+
+function shuffle<T>(arr: T[], rng: () => number): T[] {
+  const a = arr.slice()
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+function buildInspectionChildren(inspectionId: string, createdAt: Date) {
+  const rng = mulberry32(hashSeed(inspectionId))
+  const randInt = (min: number, max: number) => Math.floor(rng() * (max - min + 1)) + min
+  const pick = <T,>(arr: T[]): T => arr[Math.floor(rng() * arr.length)]
+
+  // Unique checklist labels for this inspection
+  const labels = shuffle(CHECKLIST_POOL, rng).slice(0, randInt(3, 8))
+  const checklists: any[] = labels.map((label) => {
+    // ~25% non-compliant, rest compliant/not-applicable
+    const r = rng()
+    const status = r < 0.25 ? 'NON_COMPLIANT' : r < 0.85 ? 'COMPLIANT' : 'NOT_APPLICABLE'
+    return {
+      id: randomUUID(),
+      itemId: `item-${label.replace(/\s+/g, '-').toLowerCase()}`,
+      itemLabel: label,
+      status,
+      required: rng() > 0.5,
+      notes: null,
+      createdAt,
+    }
+  })
+
+  // Verification findings only from failed (NON_COMPLIANT) checklist items
+  const failed = checklists.filter((c) => c.status === 'NON_COMPLIANT')
+  const verificationFindings: any[] = failed.map((c) => ({
+    id: randomUUID(),
+    checklistItemId: c.id,
+    checklistLabel: c.itemLabel,
+    finding: pick(FINDING_REASONS),
+    confidence: randInt(40, 95) / 100,
+    evidenceReference: null,
+    createdAt,
+  }))
+
+  // Violations only from NON_COMPLIANT checklist items
+  const violations: any[] = []
+  if (failed.length > 0 && rng() > 0.4) {
+    const count = Math.min(failed.length, randInt(1, 2))
+    for (let i = 0; i < count; i++) {
+      const c = failed[i]
+      violations.push({
+        id: randomUUID(),
+        description: pick(VIOLATION_DESCS),
+        severity: pick(SEVERITIES),
+        checklistItemId: c.id,
+        imageEvidence: null,
+        status: 'OPEN',
+        createdAt,
+      })
+    }
+  }
+
+  // Realistic confidence: mostly high, minority low
+  const confidenceScore = rng() < 0.85 ? randInt(70, 99) : randInt(40, 69)
+
+  return { checklists, verificationFindings, violations, confidenceScore }
+}
 
 const CSV_DIR = path.join(__dirname, '../../dataset')
 
@@ -38,7 +140,28 @@ async function seedDepartments() {
 
   console.log(`✅ Seeded ${departments.length} departments`)
 }
+async function seedInspectionTemplates() {
+  console.log('📋 Seeding inspection templates...')
 
+  const departments = await prisma.department.findMany()
+
+  for (const dept of departments) {
+    await prisma.inspectionTemplate.upsert({
+      where: {
+        id: `template-${dept.id}`
+      },
+      update: {},
+      create: {
+        id: `template-${dept.id}`,
+        name: `${dept.name} Standard Inspection`,
+        departmentId: dept.id,
+        checklistItems: JSON.stringify([])
+      }
+    })
+  }
+
+  console.log(`✅ Seeded ${departments.length} inspection templates`)
+}
 async function seedUsers() {
   console.log('👥 Seeding users...')
   
@@ -235,18 +358,29 @@ async function seedInspections() {
   await new Promise<void>((resolve, reject) => {
     stream.on('data', (row: any) => {
       inspections.push({
-        id: row.inspection_id,
-        siteId: row.establishment_id,
-        inspectorId: row.inspector_id,
-        templateId: row.template_id,
-        status: row.status || 'ASSIGNED',
-        scheduledDate: row.scheduled_date ? new Date(row.scheduled_date) : new Date(),
-        completedDate: row.completed_date ? new Date(row.completed_date) : null,
-        confidenceScore: row.confidence_score ? parseFloat(row.confidence_score) : null,
-        aiAnalysis: row.ai_analysis,
-        notes: row.notes,
-        createdAt: row.created_at ? new Date(row.created_at) : new Date()
-      })
+    id: row.inspection_id,
+    siteId: row.establishment_id,
+    inspectorId: row.inspector_id,
+
+    // build template id from department
+    templateId: `template-${row.department_id}`,
+
+    status: row.status || 'ASSIGNED',
+
+    scheduledDate: row.scheduled_date
+        ? new Date(row.scheduled_date)
+        : new Date(),
+
+    completedDate: row.actual_date
+    ? new Date(row.actual_date)
+    : null,
+
+    notes: row.findings,
+
+    createdAt: row.created_at
+        ? new Date(row.created_at)
+        : new Date()
+})
 
       if (inspections.length >= batchSize) {
         stream.pause()
@@ -273,11 +407,52 @@ async function seedInspections() {
 async function processInspectionBatch(inspections: any[]) {
   for (const inspection of inspections) {
     try {
+      const createdAt = inspection.createdAt ? new Date(inspection.createdAt) : new Date()
+      const { checklists, verificationFindings, violations, confidenceScore } =
+        buildInspectionChildren(inspection.id, createdAt)
       await prisma.inspection.create({
-        data: inspection
+        data: {
+          ...inspection,
+          confidenceScore,
+          checklists: {
+            create: checklists.map((c: any) => ({
+              id: c.id,
+              itemId: c.itemId,
+              itemLabel: c.itemLabel,
+              status: c.status,
+              required: c.required,
+              notes: c.notes,
+              createdAt: c.createdAt,
+            })),
+          },
+          verificationFindings: {
+            create: verificationFindings.map((v: any) => ({
+              id: v.id,
+              checklistItemId: v.checklistItemId,
+              checklistLabel: v.checklistLabel,
+              finding: v.finding,
+              confidence: v.confidence,
+              evidenceReference: v.evidenceReference,
+              createdAt: v.createdAt,
+            })),
+          },
+          violations: {
+            create: violations.map((v: any) => ({
+              id: v.id,
+              description: v.description,
+              severity: v.severity,
+              checklistItemId: v.checklistItemId,
+              imageEvidence: v.imageEvidence,
+              status: v.status,
+              createdAt: v.createdAt,
+            })),
+          },
+        } as any
       })
     } catch (error) {
-      // Skip duplicates
+      console.error('❌ First inspection insert failed:', error)
+      console.error('Failed inspection data:', JSON.stringify(inspection, null, 2))
+      throw error // Stop the seed to see the exact error
     }
   }
 }
@@ -290,6 +465,7 @@ async function main() {
     await seedUsers()
     await seedEstablishments()
     await seedRiskProfiles()
+    await seedInspectionTemplates()
     await seedInspections()
     
     console.log('\n✨ Database seeded successfully!')

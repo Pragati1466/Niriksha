@@ -5,7 +5,7 @@ import { io, Socket } from 'socket.io-client'
 import { Badge } from '@/components/ui/badge'
 import { Activity, Wifi, WifiOff } from 'lucide-react'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002'
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
 interface LiveData {
   activeInspections: number

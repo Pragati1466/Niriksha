@@ -23,7 +23,7 @@ import { setupSwagger } from './routes/swagger'
 dotenv.config()
 
 const app = express()
-const PORT = process.env.PORT || 3002
+const PORT = process.env.PORT || 3001
 
 console.log('Environment PORT:', process.env.PORT)
 console.log('Using PORT:', PORT)

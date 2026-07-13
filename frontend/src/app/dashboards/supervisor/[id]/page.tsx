@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Header } from '@/components/shared/header'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -19,16 +19,28 @@ export default function SupervisorInspectionDetailPage() {
   const params = useParams()
   const id = Array.isArray(params.id) ? params.id[0] : params.id
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [inspection, setInspection] = useState<Inspection | null>(null)
   const [loading, setLoading] = useState(true)
   const [approveDialogOpen, setApproveDialogOpen] = useState(false)
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
   const [requestEvidenceDialogOpen, setRequestEvidenceDialogOpen] = useState(false)
+  const [editReportDialogOpen, setEditReportDialogOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
   const [evidenceRequest, setEvidenceRequest] = useState('')
   const [reviewNote, setReviewNote] = useState('')
+  const [reportContent, setReportContent] = useState('')
   const [processing, setProcessing] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // Open edit report dialog if navigated with ?editReport=true
+  useEffect(() => {
+    if (!loading && inspection && searchParams.get('editReport') === 'true') {
+      const aiContent = typeof inspection.aiAnalysis === 'string' ? inspection.aiAnalysis : ''
+      setReportContent(aiContent)
+      setEditReportDialogOpen(true)
+    }
+  }, [loading, inspection])
 
   useEffect(() => {
     if (id) void fetchInspection()
@@ -150,6 +162,50 @@ export default function SupervisorInspectionDetailPage() {
     } catch (error) {
       console.error('Failed to reject inspection:', error)
       setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Failed to reject inspection' })
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const handleEditReport = async () => {
+    if (!reportContent.trim()) {
+      setMessage({ type: 'error', text: 'Report content cannot be empty' })
+      return
+    }
+    setProcessing(true)
+    try {
+      const demoMode = localStorage.getItem('demoMode') === 'true'
+      if (demoMode) {
+        setEditReportDialogOpen(false)
+        setMessage({ type: 'success', text: 'AI Report modification saved. (Demo mode)' })
+        setProcessing(false)
+        return
+      }
+      const token = localStorage.getItem('token')
+      const response = await fetch(`${getApiUrl()}/api/supervisor/inspections/${id}/review`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'MODIFY_AI_REPORT',
+          comments: reviewNote || undefined,
+          reportContent: reportContent,
+        }),
+      })
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to save report modification')
+      }
+      setEditReportDialogOpen(false)
+      setReportContent('')
+      setReviewNote('')
+      setMessage({ type: 'success', text: 'AI Report modified successfully. SUPERVISOR_EDIT version saved.' })
+      await fetchInspection()
+    } catch (error) {
+      console.error('Failed to modify report:', error)
+      setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Failed to modify report' })
     } finally {
       setProcessing(false)
     }
@@ -446,6 +502,19 @@ export default function SupervisorInspectionDetailPage() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <Button 
+                    onClick={() => {
+                      const aiContent = typeof inspection.aiAnalysis === 'string' ? inspection.aiAnalysis : ''
+                      setReportContent(aiContent)
+                      setEditReportDialogOpen(true)
+                    }} 
+                    variant="outline"
+                    className="w-full border-purple-500/30 text-purple-600 hover:bg-purple-50"
+                    disabled={processing}
+                  >
+                    <FileText className="mr-2 h-4 w-4" />
+                    Modify AI Report
+                  </Button>
+                  <Button 
                     onClick={() => setApproveDialogOpen(true)} 
                     className="w-full"
                     disabled={processing}
@@ -629,6 +698,50 @@ export default function SupervisorInspectionDetailPage() {
             </Button>
             <Button onClick={handleRequestEvidence} disabled={processing || !evidenceRequest.trim()}>
               {processing ? 'Processing...' : 'Request Evidence'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modify AI Report Dialog */}
+      <Dialog open={editReportDialogOpen} onOpenChange={(open) => { if (!open) { setEditReportDialogOpen(false); setReportContent('') }}}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Modify AI Report</DialogTitle>
+            <DialogDescription>
+              Edit the AI-generated report content below. This will create a SUPERVISOR_EDIT version.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="report-content">Report Content</Label>
+              <Textarea
+                id="report-content"
+                value={reportContent}
+                onChange={(e) => setReportContent(e.target.value)}
+                placeholder="Enter or edit the report content..."
+                rows={16}
+                className="font-mono text-sm"
+              />
+            </div>
+            {reviewNote && (
+              <div className="bg-muted p-3 rounded-lg">
+                <p className="text-sm font-medium mb-1">Your Review Note:</p>
+                <p className="text-sm text-muted-foreground">{reviewNote}</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setEditReportDialogOpen(false); setReportContent('') }} disabled={processing}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-purple-600 hover:bg-purple-700"
+              onClick={handleEditReport}
+              disabled={processing || !reportContent.trim()}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              {processing ? 'Saving...' : 'Save Modified Report'}
             </Button>
           </DialogFooter>
         </DialogContent>

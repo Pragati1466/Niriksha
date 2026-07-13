@@ -30,22 +30,26 @@ export class OfflineStorage {
   }
 
   private loadFromStorage() {
-    try {
-      this.queue = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]')
-      this.inspections = JSON.parse(localStorage.getItem(OFFLINE_INSPECTIONS_KEY) || '[]')
-    } catch (error) {
-      console.error('Failed to load offline storage:', error)
-    }
+  if (typeof window === 'undefined') return
+
+  try {
+    this.queue = JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || '[]')
+    this.inspections = JSON.parse(localStorage.getItem(OFFLINE_INSPECTIONS_KEY) || '[]')
+  } catch (error) {
+    console.error('Failed to load offline storage:', error)
   }
+}
 
   private saveToStorage() {
-    try {
-      localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(this.queue))
-      localStorage.setItem(OFFLINE_INSPECTIONS_KEY, JSON.stringify(this.inspections))
-    } catch (error) {
-      console.error('Failed to save to offline storage:', error)
-    }
+  if (typeof window === 'undefined') return
+
+  try {
+    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(this.queue))
+    localStorage.setItem(OFFLINE_INSPECTIONS_KEY, JSON.stringify(this.inspections))
+  } catch (error) {
+    console.error('Failed to save to offline storage:', error)
   }
+}
 
   enqueueAction(action: Omit<QueuedAction, 'id' | 'timestamp' | 'retryCount'>) {
     const queuedAction: QueuedAction = {
@@ -121,8 +125,9 @@ export class OfflineStorage {
   }
 
   isOnline(): boolean {
-    return navigator.onLine
-  }
+  if (typeof window === 'undefined') return true
+  return navigator.onLine
+}
 
   getQueueSize(): number {
     return this.queue.length

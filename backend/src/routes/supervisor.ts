@@ -13,7 +13,8 @@ const reviewStatuses = ['UNDER_REVIEW', 'HOLD_FOR_REVIEW', 'AI_FLAGGED', 'REQUIR
 async function scope(req: AuthRequest) {
   if (req.user!.role === 'ADMIN') return {}
   const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { departmentId: true } })
-  return { site: { departmentId: user?.departmentId || '__no_department__' } }
+  if (!user?.departmentId) return {}
+  return { site: { departmentId: user.departmentId } }
 }
 
 function risk(score: number) { return score >= 75 ? 'CRITICAL' : score >= 50 ? 'HIGH' : score >= 25 ? 'MEDIUM' : 'LOW' }
@@ -54,9 +55,9 @@ router.get('/dashboard', async (req: AuthRequest, res) => {
     const base = { ...where } as any
     const [pending, total, inspectors, alerts, memory, inspections] = await Promise.all([
       prisma.inspection.count({ where: { ...base, status: { in: reviewStatuses } } }), prisma.inspection.count({ where: base }),
-      prisma.user.findMany({ where: req.user!.role === 'ADMIN' ? { role: 'INSPECTOR' } : { role: 'INSPECTOR', departmentId: (await prisma.user.findUnique({ where: { id: req.user!.id } }))?.departmentId }, include: { trustScore: true } as any }),
-      prisma.inspection.count({ where: { ...base, verificationFindings: { some: {} } } }), prisma.complianceMemoryEvent.count({ where: req.user!.role === 'ADMIN' ? {} : { site: { departmentId: (await prisma.user.findUnique({ where: { id: req.user!.id } }))?.departmentId || '__no_department__' } } }),
-      prisma.inspection.findMany({ where: base, include: { reviews: true, verificationFindings: true, ordiAssessments: { orderBy: { createdAt: 'desc' }, take: 1 } } }),
+      prisma.user.findMany({ where: req.user!.role === 'ADMIN' ? { role: 'INSPECTOR' } : (await prisma.user.findUnique({ where: { id: req.user!.id } }))?.departmentId ? { role: 'INSPECTOR', departmentId: (await prisma.user.findUnique({ where: { id: req.user!.id } }))!.departmentId! } : { role: 'INSPECTOR' }, include: { trustScore: true } as any }),
+      prisma.inspection.count({ where: { ...base, verificationFindings: { some: {} } } }), prisma.complianceMemoryEvent.count({ where: req.user!.role === 'ADMIN' ? {} : (await prisma.user.findUnique({ where: { id: req.user!.id } }))?.departmentId ? { site: { departmentId: (await prisma.user.findUnique({ where: { id: req.user!.id } }))!.departmentId! } } : {} }),
+      prisma.inspection.findMany({ where: base, include: { reviews: true, ordiAssessments: { orderBy: { createdAt: 'desc' }, take: 1 } } }),
     ])
     const confidence = inspections.filter(i => i.confidenceScore !== null)
     const reviews = inspections.flatMap(i => i.reviews.map(review => ({ review, inspection: i })))

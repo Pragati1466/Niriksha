@@ -56,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signup = async (name: string, email: string, password: string, role: string) => {
+    console.log("Calling API:", `${getApiUrl()}/api/auth/signup`)
     const response = await fetch(`${getApiUrl()}/api/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

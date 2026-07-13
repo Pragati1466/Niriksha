@@ -7,7 +7,7 @@ const router = express.Router()
 
 router.use(authenticateToken)
 
-router.get('/', requireRole(['ADMIN']), async (req, res) => {
+router.get('/', requireRole(['ADMIN', 'SUPERVISOR']), async (req, res) => {
   try {
     const users = await prisma.user.findMany({
       include: { department: true },

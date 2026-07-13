@@ -8,28 +8,27 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(uuid())
-  email         String    @unique
-  password      String
-  name          String
-  role          String    @default("INSPECTOR")
-  departmentId  String?
-  department    Department? @relation(fields: [departmentId], references: [id])
-  phone         String?
-  employeeId    String?
-  jurisdiction   String?
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  lastLogin     DateTime?
-  
-  assignedInspections Inspection[] @relation("AssignedInspector")
-  reviews       Review[]
+  id                     String                  @id @default(uuid())
+  email                  String                  @unique
+  password               String
+  name                   String
+  role                   String                  @default("INSPECTOR")
+  departmentId           String?
+  phone                  String?
+  employeeId             String?
+  jurisdiction           String?
+  isActive               Boolean                 @default(true)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  lastLogin              DateTime?
   complianceMemoryEvents ComplianceMemoryEvent[]
-  trustScore    TrustScore?
-  trustHistory  TrustHistory[]
-  reviewActions ReviewAction[]
-  
+  assignedInspections    Inspection[]            @relation("AssignedInspector")
+  reviews                Review[]
+  reviewActions          ReviewAction[]
+  trustHistory           TrustHistory[]
+  trustScore             TrustScore?
+  department             Department?             @relation(fields: [departmentId], references: [id])
+
   @@index([email])
   @@index([role])
   @@index([departmentId])
@@ -38,46 +37,44 @@ model User {
 }
 
 model Department {
-  id          String    @id @default(uuid())
-  name        String    @unique
+  id          String               @id @default(uuid())
+  name        String               @unique
   code        String?
   description String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
-  users       User[]
-  sites       Site[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
   templates   InspectionTemplate[]
-  
+  sites       Site[]
+  users       User[]
+
   @@index([name])
   @@index([code])
 }
 
 model Site {
-  id            String    @id @default(uuid())
-  name          String
-  ownerName     String?
-  address       String
-  departmentId  String
-  department    Department @relation(fields: [departmentId], references: [id])
-  latitude      Float?
-  longitude     Float?
-  pincode       String?
-  businessType  String?
-  category      String?
-  contactDetails String?
-  registrationNumber String?
-  registrationDate DateTime?
-  expiryDate    DateTime?
-  status        String    @default("ACTIVE")
-  metadata      String?
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  inspections   Inspection[]
+  id                     String                  @id @default(uuid())
+  name                   String
+  ownerName              String?
+  address                String
+  departmentId           String
+  latitude               Float?
+  longitude              Float?
+  pincode                String?
+  businessType           String?
+  category               String?
+  contactDetails         String?
+  registrationNumber     String?
+  registrationDate       DateTime?
+  expiryDate             DateTime?
+  status                 String                  @default("ACTIVE")
+  metadata               String?
+  isActive               Boolean                 @default(true)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
   complianceMemoryEvents ComplianceMemoryEvent[]
-  
+  inspections            Inspection[]
+  department             Department              @relation(fields: [departmentId], references: [id])
+
   @@index([departmentId])
   @@index([status])
   @@index([registrationNumber])
@@ -85,54 +82,52 @@ model Site {
 }
 
 model InspectionTemplate {
-  id            String    @id @default(uuid())
-  name          String
-  description   String?
-  departmentId  String
-  department    Department @relation(fields: [departmentId], references: [id])
+  id             String       @id @default(uuid())
+  name           String
+  description    String?
+  departmentId   String
   checklistItems String
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  inspections   Inspection[]
-  
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  inspections    Inspection[]
+  department     Department   @relation(fields: [departmentId], references: [id])
+
   @@index([departmentId])
 }
 
 model Inspection {
-  id              String            @id @default(uuid())
-  siteId          String
-  site            Site              @relation(fields: [siteId], references: [id])
-  inspectorId     String
-  inspector       User              @relation("AssignedInspector", fields: [inspectorId], references: [id])
-  templateId      String
-  template        InspectionTemplate @relation(fields: [templateId], references: [id])
-  status          String            @default("ASSIGNED")
-  scheduledDate   DateTime
-  completedDate   DateTime?
-  notes           String?
-  confidenceScore Float?
-  aiAnalysis      String?
+  id                       String                  @id @default(uuid())
+  siteId                   String
+  inspectorId              String
+  templateId               String
+  status                   String                  @default("ASSIGNED")
+  scheduledDate            DateTime
+  completedDate            DateTime?
+  notes                    String?
+  confidenceScore          Float?
+  aiAnalysis               String?
   submissionOverrideReason String?
   submissionOverriddenAt   DateTime?
-  locationLat     Float?
-  locationLng     Float?
-  locationAccuracy Float?
-  locationTimestamp DateTime?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  
-  images          InspectionImage[]
-  checklists      InspectionChecklist[]
-  violations      Violation[]
-  reports         Report[]
-  reviews         Review[]
-  verificationFindings VerificationFinding[]
-  complianceMemoryEvents ComplianceMemoryEvent[]
-  ordiAssessments      OrdiAssessment[]
-  reviewActions        ReviewAction[]
-  reportVersions       ReportVersion[]
-  
+  locationLat              Float?
+  locationLng              Float?
+  locationAccuracy         Float?
+  locationTimestamp        DateTime?
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
+  complianceMemoryEvents   ComplianceMemoryEvent[]
+  template                 InspectionTemplate      @relation(fields: [templateId], references: [id])
+  inspector                User                    @relation("AssignedInspector", fields: [inspectorId], references: [id])
+  site                     Site                    @relation(fields: [siteId], references: [id])
+  checklists               InspectionChecklist[]
+  images                   InspectionImage[]
+  ordiAssessments          OrdiAssessment[]
+  reports                  Report?
+  reportVersions           ReportVersion[]
+  reviews                  Review[]
+  reviewActions            ReviewAction[]
+  verificationFindings     VerificationFinding[]
+  violations               Violation[]
+
   @@index([inspectorId])
   @@index([siteId])
   @@index([templateId])
@@ -146,13 +141,13 @@ model Inspection {
 model VerificationFinding {
   id                String     @id @default(uuid())
   inspectionId      String
-  inspection        Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
   checklistItemId   String?
   checklistLabel    String
   finding           String
   confidence        Float
   evidenceReference String?
   createdAt         DateTime   @default(now())
+  inspection        Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
 
   @@index([inspectionId])
   @@index([createdAt])
@@ -161,9 +156,7 @@ model VerificationFinding {
 model ComplianceMemoryEvent {
   id                String      @id @default(uuid())
   inspectionId      String?
-  inspection        Inspection? @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
   siteId            String?
-  site              Site?       @relation(fields: [siteId], references: [id], onDelete: SetNull)
   checklistItemId   String?
   checklistLabel    String?
   eventType         String
@@ -172,61 +165,63 @@ model ComplianceMemoryEvent {
   confidence        Float?
   evidenceReference String?
   actorId           String?
-  actor             User?       @relation(fields: [actorId], references: [id], onDelete: SetNull)
   reason            String?
   sourceRecordId    String?
   metadata          String?
   occurredAt        DateTime    @default(now())
+  actor             User?       @relation(fields: [actorId], references: [id])
+  site              Site?       @relation(fields: [siteId], references: [id])
+  inspection        Inspection? @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
 
+  @@unique([eventType, sourceRecordId])
   @@index([inspectionId])
   @@index([siteId, checklistItemId, outcome, occurredAt])
   @@index([actorId, occurredAt])
   @@index([eventType, occurredAt])
-  @@unique([eventType, sourceRecordId])
 }
 
 model InspectionImage {
-  id            String    @id @default(uuid())
-  inspectionId  String
-  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
-  imageUrl      String
-  description   String?
-  metadata      String?
-  uploadedAt    DateTime  @default(now())
-  
+  id           String     @id @default(uuid())
+  inspectionId String
+  imageUrl     String
+  description  String?
+  metadata     String?
+  uploadedAt   DateTime   @default(now())
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
   @@index([inspectionId])
 }
 
 model InspectionChecklist {
-  id            String    @id @default(uuid())
-  inspectionId  String
-  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
-  itemId        String
-  itemLabel     String
-  status        String    @default("PENDING")
-  required      Boolean   @default(false)
-  notes         String?
-  evidence      String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
+  id           String     @id @default(uuid())
+  inspectionId String
+  itemId       String
+  itemLabel    String
+  status       String     @default("PENDING")
+  required     Boolean    @default(false)
+  notes        String?
+  evidence     String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
   @@index([inspectionId])
   @@index([inspectionId, status])
   @@index([itemId])
 }
 
 model Violation {
-  id            String    @id @default(uuid())
-  inspectionId  String
-  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
-  description   String
-  severity      String
+  id              String     @id @default(uuid())
+  inspectionId    String
+  description     String
+  severity        String
   checklistItemId String?
-  imageEvidence String?
-  status        String    @default("OPEN")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
+  imageEvidence   String?
+  status          String     @default("OPEN")
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  inspection      Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
   @@index([inspectionId])
   @@index([severity])
   @@index([inspectionId, severity])
@@ -235,26 +230,26 @@ model Violation {
 }
 
 model Report {
-  id            String    @id @default(uuid())
-  inspectionId  String    @unique
-  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  id           String     @id @default(uuid())
+  inspectionId String     @unique
   pdfUrl       String?
-  summary       String?
-  generatedAt   DateTime  @default(now())
-  
+  summary      String?
+  generatedAt  DateTime   @default(now())
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
   @@index([inspectionId])
 }
 
 model Review {
-  id            String    @id @default(uuid())
-  inspectionId  String
-  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
-  reviewerId    String
-  reviewer      User      @relation(fields: [reviewerId], references: [id])
-  approved      Boolean?
-  comments      String?
-  reviewedAt    DateTime  @default(now())
-  
+  id           String     @id @default(uuid())
+  inspectionId String
+  reviewerId   String
+  approved     Boolean?
+  comments     String?
+  reviewedAt   DateTime   @default(now())
+  reviewer     User       @relation(fields: [reviewerId], references: [id])
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
   @@index([inspectionId])
   @@index([reviewerId])
   @@index([reviewerId, reviewedAt])
@@ -262,56 +257,56 @@ model Review {
 }
 
 model TrustScore {
-  id            String    @id @default(uuid())
-  inspectorId   String    @unique
-  user          User      @relation(fields: [inspectorId], references: [id])
-  score         Float     @default(100)
-  totalInspections Int    @default(0)
-  flaggedInspections Int  @default(0)
-  lastUpdated   DateTime  @default(now())
-  
+  id                 String   @id @default(uuid())
+  inspectorId        String   @unique
+  score              Float    @default(100)
+  totalInspections   Int      @default(0)
+  flaggedInspections Int      @default(0)
+  lastUpdated        DateTime @default(now())
+  user               User     @relation(fields: [inspectorId], references: [id])
+
   @@index([inspectorId])
 }
 
 model TrustHistory {
   id            String   @id @default(uuid())
   inspectorId   String
-  user          User     @relation(fields: [inspectorId], references: [id])
   score         Float
   previousScore Float
   reasons       String
   createdAt     DateTime @default(now())
+  user          User     @relation(fields: [inspectorId], references: [id])
 
   @@index([inspectorId])
   @@index([inspectorId, createdAt])
 }
 
 model OrdiAssessment {
-  id            String     @id @default(uuid())
-  inspectionId  String
-  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
-  score         Float
-  riskLevel     String
-  priority      String
-  trend         String
-  contributors  String
-  createdAt     DateTime   @default(now())
+  id           String     @id @default(uuid())
+  inspectionId String
+  score        Float
+  riskLevel    String
+  priority     String
+  trend        String
+  contributors String
+  createdAt    DateTime   @default(now())
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
 
   @@index([inspectionId])
   @@index([inspectionId, createdAt])
 }
 
 model ReviewAction {
-  id            String     @id @default(uuid())
-  inspectionId  String
-  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
-  reviewerId    String
-  reviewer      User       @relation(fields: [reviewerId], references: [id])
-  action        String
-  oldStatus     String
-  newStatus     String
-  comments      String?
-  createdAt     DateTime   @default(now())
+  id           String     @id @default(uuid())
+  inspectionId String
+  reviewerId   String
+  action       String
+  oldStatus    String
+  newStatus    String
+  comments     String?
+  createdAt    DateTime   @default(now())
+  reviewer     User       @relation(fields: [reviewerId], references: [id])
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
 
   @@index([inspectionId])
   @@index([reviewerId])
@@ -333,13 +328,13 @@ model AuditLog {
 }
 
 model ReportVersion {
-  id            String     @id @default(uuid())
-  inspectionId  String
-  inspection    Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
-  versionType   String
-  content       String
-  authorId      String
-  createdAt     DateTime   @default(now())
+  id           String     @id @default(uuid())
+  inspectionId String
+  versionType  String
+  content      String
+  authorId     String
+  createdAt    DateTime   @default(now())
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
 
   @@index([inspectionId])
   @@index([inspectionId, createdAt])
@@ -355,7 +350,7 @@ model Notification {
   read      Boolean  @default(false)
   metadata  String?
   createdAt DateTime @default(now())
-  
+
   @@index([userId])
   @@index([userId, read])
   @@index([type])

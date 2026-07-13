@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useAuth } from '@/contexts/auth-context'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/shared/header'
@@ -67,6 +67,7 @@ export default function SupervisorDashboard() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [memoryGraph, setMemoryGraph] = useState<any>(null)
   const [loadingData, setLoadingData] = useState(true)
+  const loadedData = useRef<Record<string, boolean>>({})
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState('')
@@ -96,9 +97,93 @@ export default function SupervisorDashboard() {
 
   useEffect(() => {
     if (user || isDemoMode) {
-      fetchAllData()
+      fetchInitialData()
     }
   }, [user, isDemoMode])
+
+  const fetchInitialData = async () => {
+    if (isDemoMode) {
+      return fetchAllData()
+    }
+    setLoadingData(true)
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) return
+      const [dash, notifs] = await Promise.all([
+        api.getSupervisorDashboard().catch(() => null),
+        api.getNotifications().catch(() => ({ notifications: [], unreadCount: 0 })),
+      ])
+      setDashboardData(dash)
+      setNotifications(notifs.notifications || [])
+      setUnreadCount(notifs.unreadCount || 0)
+    } catch (error) {
+      console.error('Failed to fetch supervisor data:', error)
+    } finally {
+      setLoadingData(false)
+    }
+  }
+
+  const loadTabData = async (tab: string) => {
+    if (isDemoMode) return
+    try {
+      switch (tab) {
+        case 'queue':
+          if (!loadedData.current.queue) {
+            loadedData.current.queue = true
+            const q = await api.getSupervisorQueue().catch(() => ({ queue: [] }))
+            setQueue(q.queue || [])
+          }
+          break
+        case 'trust':
+          if (!loadedData.current.trust) {
+            loadedData.current.trust = true
+            const trust = await api.getTrustScores().catch(() => ({ inspectors: [] }))
+            setTrustData(trust.inspectors || [])
+          }
+          break
+        case 'analytics':
+          await Promise.all([
+            (async () => {
+              if (!loadedData.current.executive) {
+                loadedData.current.executive = true
+                const exec = await api.getExecutiveDashboard().catch(() => null)
+                setExecutiveData(exec)
+              }
+            })(),
+            (async () => {
+              if (!loadedData.current.heatmap) {
+                loadedData.current.heatmap = true
+                const heatmap = await api.getHeatmap().catch(() => ({ markers: [] }))
+                setHeatmapData(heatmap.markers || [])
+              }
+            })(),
+          ])
+          break
+        case 'executive':
+          if (!loadedData.current.executive) {
+            loadedData.current.executive = true
+            const exec = await api.getExecutiveDashboard().catch(() => null)
+            setExecutiveData(exec)
+          }
+          break
+      }
+    } catch (error) {
+      console.error('Failed to load tab data:', error)
+    }
+  }
+
+  const loadAssignmentData = async () => {
+    if (isDemoMode || loadedData.current.assignment) return
+    loadedData.current.assignment = true
+    const [inspectorsRes, sitesRes, templatesRes] = await Promise.all([
+      api.getUsers('INSPECTOR').catch(() => []),
+      api.getSites().catch(() => []),
+      api.getTemplates().catch(() => []),
+    ])
+    setInspectors(Array.isArray(inspectorsRes) ? inspectorsRes : [])
+    setSites(Array.isArray(sitesRes) ? sitesRes : [])
+    setTemplates(Array.isArray(templatesRes) ? templatesRes : [])
+  }
 
   const fetchAllData = async () => {
     setLoadingData(true)
@@ -231,6 +316,7 @@ export default function SupervisorDashboard() {
         setNotifications(notifs.notifications || [])
         setUnreadCount(notifs.unreadCount || 0)
         setMemoryGraph(graph)
+        loadedData.current = { ...loadedData.current, queue: true, trust: true, heatmap: true, executive: true, assignment: true }
 
         // Fetch assignment data
         const [inspectorsRes, sitesRes, templatesRes] = await Promise.all([
@@ -373,7 +459,7 @@ export default function SupervisorDashboard() {
             <Button variant="outline" className="border-white/20 text-white bg-white/5 hover:bg-white/10" onClick={fetchAllData}>
               <RefreshCw className="mr-2 h-4 w-4" /> Refresh
             </Button>
-            <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+            <Dialog open={assignDialogOpen} onOpenChange={(open) => { setAssignDialogOpen(open); if (open) loadAssignmentData() }}>
               <DialogTrigger asChild>
                 <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white">
                   <Plus className="mr-2 h-4 w-4" /> Assign Inspection
@@ -423,8 +509,8 @@ export default function SupervisorDashboard() {
           </div>
         </div>
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-8">
+        {/* KPI Cards - Row 1 */}
+        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-4">
           <Card className="bg-white/5 border-white/10 backdrop-blur-xl col-span-1 lg:col-span-2">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
@@ -471,8 +557,56 @@ export default function SupervisorDashboard() {
           </Card>
         </div>
 
+        {/* KPI Cards - Row 2 */}
+        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-8">
+          <Card className="bg-white/5 border-white/10 backdrop-blur-xl col-span-1 lg:col-span-2">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-white/50">Avg Report Prep Time</p>
+                <p className="text-2xl font-bold text-white">{dashboardData?.averageReviewTimeHours?.toFixed(1) || '—'}h</p>
+              </div>
+              <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                <Clock className="w-5 h-5 text-cyan-400" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-white/5 border-white/10 backdrop-blur-xl col-span-1 lg:col-span-2">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-white/50">High-Risk Coverage</p>
+                <p className="text-2xl font-bold text-orange-400">{dashboardData?.ordiKpis?.critical || 0}</p>
+              </div>
+              <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-orange-400" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-white/5 border-white/10 backdrop-blur-xl col-span-1 lg:col-span-2">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-white/50">Inspector Productivity</p>
+                <p className="text-2xl font-bold text-white">{dashboardData?.inspectorProductivity?.reduce((s: number, i: any) => s + i.inspections, 0) || 0}</p>
+              </div>
+              <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                <Users className="w-5 h-5 text-blue-400" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-white/5 border-white/10 backdrop-blur-xl col-span-1 lg:col-span-2">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-white/50">AI Rec. Acceptance</p>
+                <p className="text-2xl font-bold text-white">{dashboardData?.approvalRate?.toFixed(1) || '—'}%</p>
+              </div>
+              <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                <Star className="w-5 h-5 text-emerald-400" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={(value) => { setActiveTab(value); loadTabData(value) }} className="space-y-6">
           <TabsList className="bg-white/5 border border-white/10">
             <TabsTrigger value="overview" className="text-white/60 data-[state=active]:text-white data-[state=active]:bg-purple-500/20">Overview</TabsTrigger>
             <TabsTrigger value="queue" className="text-white/60 data-[state=active]:text-white data-[state=active]:bg-purple-500/20">Review Queue</TabsTrigger>
@@ -538,7 +672,7 @@ export default function SupervisorDashboard() {
               <CardContent>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={dashboardData?.inspectorProductivity || []}>
+                    <BarChart data={(dashboardData?.inspectorProductivity || []).slice().sort((a: any, b: any) => (b.inspections || 0) - (a.inspections || 0)).slice(0, 10)}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                       <XAxis dataKey="name" stroke="rgba(255,255,255,0.4)" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 12 }} />
                       <YAxis stroke="rgba(255,255,255,0.4)" />
@@ -728,6 +862,13 @@ export default function SupervisorDashboard() {
                             <Eye className="mr-1 h-4 w-4" /> Review
                           </Button>
                           <Button
+                            variant="outline"
+                            className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+                            onClick={() => router.push(`/dashboards/supervisor/${item.inspectionId}?editReport=true`)}
+                          >
+                            <FileText className="mr-1 h-4 w-4" /> Edit Report
+                          </Button>
+                          <Button
                             className="bg-green-500 hover:bg-green-600 text-white"
                             onClick={() => {
                               setReviewDialog({ open: true, inspection: item })
@@ -810,7 +951,14 @@ export default function SupervisorDashboard() {
           {/* TRUST SCORES TAB */}
           <TabsContent value="trust" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {trustData.map((inspector: any) => (
+              {trustData.slice().sort((a: any, b: any) => {
+                const an = a.currentTrust == null
+                const bn = b.currentTrust == null
+                if (an && bn) return 0
+                if (an) return 1
+                if (bn) return -1
+                return (b.currentTrust || 0) - (a.currentTrust || 0)
+              }).slice(0, 25).map((inspector: any) => (
                 <Card key={inspector.id} className={`bg-white/5 border backdrop-blur-xl ${
                   (inspector.currentTrust || 0) >= 90 ? 'border-green-500/30' :
                   (inspector.currentTrust || 0) >= 70 ? 'border-yellow-500/30' : 'border-red-500/30'
@@ -911,7 +1059,7 @@ export default function SupervisorDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {heatmapData.map((zone, idx) => (
+                    {heatmapData.slice().sort((a: any, b: any) => (b.score || 0) - (a.score || 0)).slice(0, 20).map((zone, idx) => (
                       <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-white/5">
                         <div>
                           <p className="text-white font-medium">{zone.name}</p>
