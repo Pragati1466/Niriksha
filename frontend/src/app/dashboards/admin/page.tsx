@@ -22,6 +22,7 @@ export default function AdminDashboard() {
   const [departments, setDepartments] = useState<any[]>([])
   const [sites, setSites] = useState<any[]>([])
   const [loadingData, setLoadingData] = useState(true)
+  const [statusFilter, setStatusFilter] = useState<string>('ALL')
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'ADMIN') && !isDemoMode) {
@@ -160,6 +161,23 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleUpdateUserStatus = async (userId: string, status: 'APPROVED' | 'REJECTED' | 'PENDING') => {
+    try {
+      const token = localStorage.getItem('token')
+      await fetch(`${getApiUrl()}/api/admin/users/${userId}/status`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      })
+      fetchData()
+    } catch (error) {
+      console.error('Failed to update user status:', error)
+    }
+  }
+
   if (loading || loadingData) {
     return (
       <div className="min-h-screen">
@@ -260,6 +278,18 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div className="flex gap-2">
+                    <Select defaultValue="ALL" value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="w-[180px]">
+                        <Filter className="mr-2 h-4 w-4" />
+                        <SelectValue placeholder="Filter by status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ALL">All Status</SelectItem>
+                        <SelectItem value="APPROVED">Approved</SelectItem>
+                        <SelectItem value="PENDING">Pending</SelectItem>
+                        <SelectItem value="REJECTED">Rejected</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Select defaultValue="ALL">
                       <SelectTrigger className="w-[180px]">
                         <Filter className="mr-2 h-4 w-4" />
@@ -297,6 +327,14 @@ export default function AdminDashboard() {
                         <div className="flex items-center gap-2">
                           <p className="font-medium">{userItem.name}</p>
                           {!userItem.isActive && <Badge variant="secondary" className="text-xs">Inactive</Badge>}
+                          {userItem.status && (
+                            <Badge 
+                              variant={userItem.status === 'APPROVED' ? 'default' : userItem.status === 'PENDING' ? 'secondary' : 'destructive'}
+                              className="text-xs"
+                            >
+                              {userItem.status}
+                            </Badge>
+                          )}
                         </div>
                         <p className="text-sm text-muted-foreground">{userItem.email}</p>
                         <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
@@ -311,6 +349,26 @@ export default function AdminDashboard() {
                           <p className="text-xs text-muted-foreground">{userItem.department?.name || 'No Department'}</p>
                         </div>
                         <div className="flex gap-2">
+                          {userItem.status === 'PENDING' && (
+                            <>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                                onClick={() => handleUpdateUserStatus(userItem.id, 'APPROVED')}
+                              >
+                                Approve
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="bg-red-50 hover:bg-red-100 text-red-700 border-red-200"
+                                onClick={() => handleUpdateUserStatus(userItem.id, 'REJECTED')}
+                              >
+                                Reject
+                              </Button>
+                            </>
+                          )}
                           <Button variant="outline" size="sm" onClick={() => {/* TODO: Open edit modal */}}>
                             Edit
                           </Button>

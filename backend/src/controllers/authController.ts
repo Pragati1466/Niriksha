@@ -30,6 +30,7 @@ export const signup = async (req: Request, res: Response) => {
         email,
         password: hashedPassword,
         role: 'INSPECTOR', // Force INSPECTOR role on public signup
+        status: 'APPROVED', // Auto-approve for immediate login
       },
     })
 
@@ -46,6 +47,7 @@ export const signup = async (req: Request, res: Response) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        status: user.status,
       },
     })
   } catch (error) {

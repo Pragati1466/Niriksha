@@ -17,7 +17,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [demoRole, setDemoRole] = useState<'INSPECTOR' | 'SUPERVISOR' | 'ADMIN'>('SUPERVISOR')
-  const { login, enterDemoMode } = useAuth()
+  const { login, enterDemoMode, user } = useAuth()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,8 +26,10 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      await login(email, password)
-      router.push('/')
+      const loggedInUser = await login(email, password)
+      // Redirect based on user role
+      const path = loggedInUser.role === 'ADMIN' ? '/dashboards/admin' : loggedInUser.role === 'SUPERVISOR' ? '/dashboards/supervisor' : '/dashboards/inspector'
+      router.push(path)
     } catch (err) {
       setError('Invalid email or password')
     } finally {
