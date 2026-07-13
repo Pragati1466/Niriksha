@@ -17,7 +17,6 @@ import agentRoutes from './routes/agents'
 import aiFeaturesRoutes from './routes/ai-features'
 import supervisorRoutes from './routes/supervisor'
 import extraFeaturesRoutes from './routes/extra-features'
-import adminUsersRoutes from './routes/admin-users'
 import { initWebSocket } from './services/websocketService'
 import { setupSwagger } from './routes/swagger'
 
@@ -93,7 +92,6 @@ app.use('/api/agents', agentRoutes)
 app.use('/api/ai-features', aiFeaturesRoutes)
 app.use('/api/supervisor', supervisorRoutes)
 app.use('/api/extra', extraFeaturesRoutes)
-app.use('/api/admin/users', adminUsersRoutes)
 
 setupSwagger(app)
 
