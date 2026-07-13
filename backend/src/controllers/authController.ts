@@ -3,9 +3,16 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import prisma from '../utils/prisma'
 
+const ALLOWED_SIGNUP_ROLES = ['INSPECTOR']
+
 export const signup = async (req: Request, res: Response) => {
   try {
     const { name, email, password, role } = req.body
+
+    // SECURITY FIX: Only allow INSPECTOR role on public signup
+    if (role && !ALLOWED_SIGNUP_ROLES.includes(role)) {
+      return res.status(403).json({ error: 'Public registration only allows INSPECTOR role. Contact admin for other roles.' })
+    }
 
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -22,7 +29,7 @@ export const signup = async (req: Request, res: Response) => {
         name,
         email,
         password: hashedPassword,
-        role,
+        role: 'INSPECTOR', // Force INSPECTOR role on public signup
       },
     })
 
