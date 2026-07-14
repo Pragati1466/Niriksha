@@ -177,10 +177,19 @@ export const api = {
   // Reports
   downloadReport: async (inspectionId: string) => {
     const token = localStorage.getItem('token')
-    const res = await fetch(`${API_BASE}/api/reports/${inspectionId}/pdf`, {
+    const res = await fetch(`${API_BASE}/api/supervisor/inspections/${inspectionId}/export/pdf`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!res.ok) throw new Error('Failed to download report')
+    return res.blob()
+  },
+
+  downloadCsv: async () => {
+    const token = localStorage.getItem('token')
+    const res = await fetch(`${API_BASE}/api/supervisor/exports/inspections.csv`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    if (!res.ok) throw new Error('Failed to download CSV')
     return res.blob()
   },
 
@@ -199,4 +208,16 @@ export const api = {
     if (!res.ok) throw new Error('Failed to upload image')
     return res.json()
   },
+}
+
+// Triggers a browser download for a Blob returned by an export endpoint.
+export function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
 }

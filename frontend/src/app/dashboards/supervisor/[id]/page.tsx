@@ -12,8 +12,9 @@ import { Label } from '@/components/ui/label'
 import { Inspection, InspectionChecklist } from '@/types'
 import { InspectionStatusBadge } from '@/components/inspections/inspection-status-badge'
 import { VerificationFindingsPanel } from '@/components/inspections/verification-findings-panel'
-import { ArrowLeft, CheckCircle, XCircle, AlertTriangle, FileText, Camera, ShieldCheck, User, Calendar, MapPin, MessageSquare, Send, TrendingUp } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, AlertTriangle, FileText, Camera, ShieldCheck, User, Calendar, MapPin, MessageSquare, Send, TrendingUp, Download } from 'lucide-react'
 import { getApiUrl } from '@/lib/api'
+import { triggerDownload } from '@/lib/api-client'
 
 export default function SupervisorInspectionDetailPage() {
   const params = useParams()
@@ -82,15 +83,15 @@ export default function SupervisorInspectionDetailPage() {
       if (!token) {
         throw new Error('No authentication token found. Please login again.')
       }
-      const response = await fetch(`${getApiUrl()}/api/inspections/${id}`, {
+      const response = await fetch(`${getApiUrl()}/api/supervisor/inspections/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Failed to load inspection')
       }
-      const data: Inspection = await response.json()
-      setInspection(data)
+      const data = await response.json()
+      setInspection(data.inspection)
     } catch (error) {
       console.error('Failed to fetch inspection:', error)
       setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Failed to load inspection' })
@@ -103,15 +104,15 @@ export default function SupervisorInspectionDetailPage() {
     setProcessing(true)
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`${getApiUrl()}/api/inspections/${id}`, {
-        method: 'PUT',
+      const response = await fetch(`${getApiUrl()}/api/supervisor/inspections/${id}/review`, {
+        method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          status: 'APPROVED',
-          reviewNote: reviewNote 
+          action: 'APPROVE',
+          comments: reviewNote || undefined
         }),
       })
       if (!response.ok) {
@@ -138,16 +139,15 @@ export default function SupervisorInspectionDetailPage() {
     setProcessing(true)
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`${getApiUrl()}/api/inspections/${id}`, {
-        method: 'PUT',
+      const response = await fetch(`${getApiUrl()}/api/supervisor/inspections/${id}/review`, {
+        method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          status: 'REJECTED',
-          notes: rejectReason,
-          reviewNote: reviewNote
+          action: 'REJECT',
+          comments: reviewNote ? `${rejectReason}\n\nReview note: ${reviewNote}` : rejectReason
         }),
       })
       if (!response.ok) {
@@ -219,16 +219,15 @@ export default function SupervisorInspectionDetailPage() {
     setProcessing(true)
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`${getApiUrl()}/api/inspections/${id}`, {
-        method: 'PUT',
+      const response = await fetch(`${getApiUrl()}/api/supervisor/inspections/${id}/review`, {
+        method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          status: 'HOLD_FOR_REVIEW',
-          notes: evidenceRequest,
-          reviewNote: reviewNote
+          action: 'REQUEST_EVIDENCE',
+          comments: reviewNote ? `${evidenceRequest}\n\nReview note: ${reviewNote}` : evidenceRequest
         }),
       })
       if (!response.ok) {
@@ -243,6 +242,33 @@ export default function SupervisorInspectionDetailPage() {
     } catch (error) {
       console.error('Failed to request evidence:', error)
       setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Failed to request evidence' })
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const handleExportPdf = async () => {
+    const demoMode = localStorage.getItem('demoMode') === 'true'
+    if (demoMode) {
+      setMessage({ type: 'error', text: 'PDF export is not available in demo mode.' })
+      return
+    }
+    setProcessing(true)
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`${getApiUrl()}/api/supervisor/inspections/${id}/export/pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to export PDF')
+      }
+      const blob = await response.blob()
+      triggerDownload(blob, `inspection-${id}.pdf`)
+      setMessage({ type: 'success', text: 'PDF export started. Your download should begin shortly.' })
+    } catch (error) {
+      console.error('Failed to export PDF:', error)
+      setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Failed to export PDF' })
     } finally {
       setProcessing(false)
     }
@@ -595,6 +621,25 @@ export default function SupervisorInspectionDetailPage() {
                   <span className="text-muted-foreground">Status</span>
                   <InspectionStatusBadge status={inspection.status} />
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Export */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Export</CardTitle>
+                <CardDescription>Download a copy of this inspection report</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  variant="outline"
+                  onClick={handleExportPdf}
+                  className="w-full"
+                  disabled={processing}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Export PDF
+                </Button>
               </CardContent>
             </Card>
           </div>

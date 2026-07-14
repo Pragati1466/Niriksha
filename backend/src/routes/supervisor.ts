@@ -8,12 +8,12 @@ import PDFDocument from 'pdfkit'
 const router = Router()
 router.use(authenticateToken, requireRole(['SUPERVISOR', 'ADMIN']))
 
-const reviewStatuses = ['UNDER_REVIEW', 'HOLD_FOR_REVIEW', 'AI_FLAGGED', 'REQUIRES_OVERRIDE']
+const reviewStatuses = ['UNDER_REVIEW', 'HOLD_FOR_REVIEW', 'AI_FLAGGED', 'REQUIRES_OVERRIDE', 'SUBMITTED']
 
 async function scope(req: AuthRequest) {
   if (req.user!.role === 'ADMIN') return {}
   const user = await prisma.user.findUnique({ where: { id: req.user!.id }, select: { departmentId: true } })
-  if (!user?.departmentId) return {}
+  if (!user?.departmentId) return { site: { departmentId: '__none__' } }
   return { site: { departmentId: user.departmentId } }
 }
 
@@ -55,20 +55,20 @@ router.get('/dashboard', async (req: AuthRequest, res) => {
     const base = { ...where } as any
     const [pending, total, inspectors, alerts, memory, inspections] = await Promise.all([
       prisma.inspection.count({ where: { ...base, status: { in: reviewStatuses } } }), prisma.inspection.count({ where: base }),
-      prisma.user.findMany({ where: req.user!.role === 'ADMIN' ? { role: 'INSPECTOR' } : (await prisma.user.findUnique({ where: { id: req.user!.id } }))?.departmentId ? { role: 'INSPECTOR', departmentId: (await prisma.user.findUnique({ where: { id: req.user!.id } }))!.departmentId! } : { role: 'INSPECTOR' }, include: { trustScore: true } as any }),
+      prisma.user.findMany({ where: req.user!.role === 'ADMIN' ? { role: 'INSPECTOR' } : (await prisma.user.findUnique({ where: { id: req.user!.id } }))?.departmentId ? { role: 'INSPECTOR', departmentId: (await prisma.user.findUnique({ where: { id: req.user!.id } }))!.departmentId! } : { role: 'INSPECTOR', departmentId: '__none__' }, include: { trustScore: true } as any }),
       prisma.inspection.count({ where: { ...base, verificationFindings: { some: {} } } }), prisma.complianceMemoryEvent.count({ where: req.user!.role === 'ADMIN' ? {} : (await prisma.user.findUnique({ where: { id: req.user!.id } }))?.departmentId ? { site: { departmentId: (await prisma.user.findUnique({ where: { id: req.user!.id } }))!.departmentId! } } : {} }),
-      prisma.inspection.findMany({ where: base, include: { reviews: true, ordiAssessments: { orderBy: { createdAt: 'desc' }, take: 1 } } }),
+      prisma.inspection.findMany({ where: base, include: { reviews: true, ordiAssessments: { orderBy: { createdAt: 'desc' }, take: 1 }, verificationFindings: true, reports: true } }),
     ])
     const confidence = inspections.filter(i => i.confidenceScore !== null)
     const reviews = inspections.flatMap(i => i.reviews.map(review => ({ review, inspection: i })))
-    const reviewDurations = reviews.filter(({ inspection }) => inspection.completedDate).map(({ review, inspection }) => review.reviewedAt.getTime() - inspection.completedDate!.getTime())
+    const reportDurations = inspections.filter(i => i.reports?.generatedAt && (i.completedDate || i.createdAt)).map(i => i.reports!.generatedAt.getTime() - (i.completedDate || i.createdAt).getTime())
     const ordi = inspections.map(i => i.ordiAssessments[0]).filter(Boolean)
     const trustScores = inspectors.map((u: any) => u.trustScore?.score).filter((score: number | undefined): score is number => score !== undefined)
     res.json({
-      pendingReviews: pending, totalInspections: total, activeInspectors: inspectors.length, aiAlerts: alerts, memoryEvents: memory,
+      pendingReviews: pending, totalInspections: total, activeInspectors: inspectors.length, aiAlerts: inspections.reduce((sum, i) => sum + i.verificationFindings.length, 0), memoryEvents: memory,
       averageConfidence: confidence.length ? confidence.reduce((sum, i) => sum + (i.confidenceScore || 0), 0) / confidence.length : null,
-      averageReviewTimeHours: reviewDurations.length ? reviewDurations.reduce((sum, duration) => sum + duration, 0) / reviewDurations.length / 3600000 : null,
-      inspectorProductivity: inspectors.map((u: any) => ({ id: u.id, name: u.name, inspections: inspections.filter(i => i.inspectorId === u.id).length })),
+      averageReviewTimeHours: reportDurations.length ? reportDurations.reduce((sum, duration) => sum + duration, 0) / reportDurations.length / 3600000 : null,
+      inspectorProductivity: inspectors.map((u: any) => ({ id: u.id, name: u.name, inspections: inspections.filter(i => i.inspectorId === u.id && i.status !== 'ASSIGNED' && i.status !== 'IN_PROGRESS').length })),
       approvalRate: reviews.length ? reviews.filter(({ review }) => review.approved === true).length / reviews.length * 100 : null,
       evidenceMismatchPercent: total ? alerts / total * 100 : null,
       ordiKpis: { assessed: ordi.length, averageScore: ordi.length ? ordi.reduce((sum, item) => sum + item.score, 0) / ordi.length : null, critical: ordi.filter(item => item.riskLevel === 'CRITICAL').length, priorityP0: ordi.filter(item => item.priority === 'P0').length },
@@ -90,7 +90,6 @@ router.get('/queue', async (req: AuthRequest, res) => {
     const rows = await prisma.inspection.findMany({ where, include: { site: { include: { department: true } }, inspector: { include: { trustScore: true } }, verificationFindings: true, checklists: true, violations: true, reviews: true, ordiAssessments: { orderBy: { createdAt: 'desc' }, take: 1 } }, orderBy: { createdAt: 'desc' } })
     const queue = await Promise.all(rows.map(async inspection => {
       const ordi = await calculateOrdi(inspection)
-      if (!inspection.ordiAssessments[0] || Math.abs(inspection.ordiAssessments[0].score - ordi.score) > 0) await prisma.ordiAssessment.create({ data: { inspectionId: inspection.id, score: ordi.score, riskLevel: ordi.riskLevel, priority: ordi.priority, trend: ordi.trend, contributors: JSON.stringify(ordi.contributors) } })
       return { inspectionId: inspection.id, site: inspection.site.name, inspector: inspection.inspector.name, inspectorId: inspection.inspectorId, department: inspection.site.department.name, submissionDate: inspection.completedDate || inspection.createdAt, status: inspection.status, aiConfidence: inspection.confidenceScore, trustScore: inspection.inspector.trustScore?.score ?? null, evidenceMismatchCount: inspection.verificationFindings.length, ordi }
     }))
     res.json({ queue: risk ? queue.filter(item => item.ordi.riskLevel === risk) : queue.sort((a, b) => b.ordi.score - a.ordi.score) })
@@ -219,15 +218,64 @@ router.get('/inspections/:id/export/pdf', async (req: AuthRequest, res) => {
   doc.fontSize(15).text('Checklist').fontSize(12); inspection.checklists.forEach(item => doc.text(`${item.itemLabel}: ${item.status}`)); doc.moveDown(); doc.fontSize(15).text('Violations').fontSize(12); inspection.violations.forEach(item => doc.text(`${item.severity}: ${item.description}`)); doc.end()
 })
 
+// Department-specific checklist label mappings
+const departmentChecklistLabels: Record<string, string[]> = {
+  'Food Safety': ['Sanitation', 'Pest Control', 'Water Quality', 'Documentation', 'Staff Training', 'Waste Disposal'],
+  'Fire Safety': ['Fire Safety', 'Emergency Exits', 'Electrical Safety', 'Signage', 'Equipment Maintenance', 'Documentation'],
+  'Healthcare': ['Sanitation', 'First Aid', 'Documentation', 'Equipment Maintenance', 'Staff Training', 'Waste Disposal'],
+  'Industrial Safety': ['Equipment Maintenance', 'Structural Integrity', 'Electrical Safety', 'Documentation', 'Staff Training', 'Ventilation'],
+  'Environmental': ['Waste Disposal', 'Water Quality', 'Documentation', 'Structural Integrity', 'Ventilation', 'Signage'],
+}
+
 router.get('/analytics', async (req: AuthRequest, res) => {
   const where: any = await scope(req)
-  const inspections = await prisma.inspection.findMany({ where, include: { violations: true, verificationFindings: true, reviews: true, site: true, inspector: true } })
-  const completed = inspections.filter(i => ['APPROVED', 'REJECTED'].includes(i.status))
+  const inspections = await prisma.inspection.findMany({ where, include: { violations: true, verificationFindings: true, reviews: true, site: { include: { department: true } }, checklists: true, inspector: true } })
+  const completed = inspections.filter(i => ['APPROVED', 'COMPLETED', 'CLOSED'].includes(i.status))
   const confidence = inspections.filter(i => i.confidenceScore !== null)
   const byMonth = new Map<string, { inspections: number, completed: number }>()
   inspections.forEach(i => { const key = i.createdAt.toISOString().slice(0, 7); const value = byMonth.get(key) || { inspections: 0, completed: 0 }; value.inspections++; if (completed.some(c => c.id === i.id)) value.completed++; byMonth.set(key, value) })
   const reviews = inspections.flatMap(i => i.reviews)
-  res.json({ totalInspections: inspections.length, completedInspections: completed.length, approvalRate: reviews.length ? reviews.filter(r => r.approved).length / reviews.length * 100 : null, averageVerificationConfidence: confidence.length ? confidence.reduce((n, i) => n + (i.confidenceScore || 0), 0) / confidence.length : null, evidenceMismatchPercent: inspections.length ? inspections.filter(i => i.verificationFindings.length > 0).length / inspections.length * 100 : null, violations: ['CRITICAL','HIGH','MEDIUM','LOW'].map(severity => ({ severity, count: inspections.reduce((n, i) => n + i.violations.filter(v => v.severity === severity).length, 0) })), monthlyTrends: Array.from(byMonth, ([month, values]) => ({ month, ...values })) })
+  
+  // Get department name from scoped inspections
+  const departmentName = inspections[0]?.site?.department?.name || 'Unknown'
+  
+  // Build compliance breakdown from actual checklist data
+  const allChecklists = inspections.flatMap(i => i.checklists)
+  const labelGroups = new Map<string, { total: number, compliant: number }>()
+  
+  allChecklists.forEach(c => {
+    const label = c.itemLabel
+    const existing = labelGroups.get(label) || { total: 0, compliant: 0 }
+    existing.total++
+    if (c.status === 'COMPLIANT') existing.compliant++
+    labelGroups.set(label, existing)
+  })
+  
+  // Filter labels by department and calculate compliance rates
+  const relevantLabels = departmentChecklistLabels[departmentName] || Array.from(labelGroups.keys())
+  const complianceBreakdown = relevantLabels
+    .filter(label => labelGroups.has(label))
+    .map(label => {
+      const counts = labelGroups.get(label)!
+      return {
+        category: label,
+        complianceRate: Math.round((counts.compliant / counts.total) * 100),
+        inspectionCount: counts.total
+      }
+    })
+    .sort((a, b) => b.complianceRate - a.complianceRate)
+  
+  res.json({ 
+    totalInspections: inspections.length, 
+    completedInspections: completed.length, 
+    approvalRate: reviews.length ? reviews.filter(r => r.approved).length / reviews.length * 100 : null, 
+    averageVerificationConfidence: confidence.length ? confidence.reduce((n, i) => n + (i.confidenceScore || 0), 0) / confidence.length : null, 
+    evidenceMismatchPercent: inspections.length ? inspections.filter(i => i.verificationFindings.length > 0).length / inspections.length * 100 : null, 
+    violations: ['CRITICAL','HIGH','MEDIUM','LOW'].map(severity => ({ severity, count: inspections.reduce((n, i) => n + i.violations.filter(v => v.severity === severity).length, 0) })), 
+    monthlyTrends: Array.from(byMonth, ([month, values]) => ({ month, ...values })),
+    departmentName,
+    complianceBreakdown
+  })
 })
 
 router.get('/memory/graph', async (req: AuthRequest, res) => {

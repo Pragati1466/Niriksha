@@ -12,8 +12,8 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { api } from '@/lib/api-client'
-import { Inspection, User, Site, InspectionTemplate } from '@/types'
+import { api, triggerDownload } from '@/lib/api-client'
+import { Inspection, User, Site, InspectionTemplate, SupervisorAnalytics } from '@/types'
 import { 
   AlertTriangle, CheckCircle, XCircle, TrendingUp, Users, FileText, Eye, Plus, Calendar,
   Shield, Activity, Brain, MapPin, Clock, BarChart3, Network, Search, Filter, Download,
@@ -63,6 +63,7 @@ export default function SupervisorDashboard() {
   const [trustData, setTrustData] = useState<any[]>([])
   const [heatmapData, setHeatmapData] = useState<any[]>([])
   const [executiveData, setExecutiveData] = useState<any>(null)
+  const [analyticsData, setAnalyticsData] = useState<SupervisorAnalytics | null>(null)
   const [notifications, setNotifications] = useState<any[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [memoryGraph, setMemoryGraph] = useState<any>(null)
@@ -88,6 +89,10 @@ export default function SupervisorDashboard() {
   const [reviewDialog, setReviewDialog] = useState<{ open: boolean; inspection: any | null }>({ open: false, inspection: null })
   const [reviewAction, setReviewAction] = useState('')
   const [reviewComments, setReviewComments] = useState('')
+
+  // Export state
+  const [exportingCsv, setExportingCsv] = useState(false)
+  const [exportMessage, setExportMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERVISOR') && !isDemoMode) {
@@ -155,6 +160,13 @@ export default function SupervisorDashboard() {
                 loadedData.current.heatmap = true
                 const heatmap = await api.getHeatmap().catch(() => ({ markers: [] }))
                 setHeatmapData(heatmap.markers || [])
+              }
+            })(),
+            (async () => {
+              if (!loadedData.current.analytics) {
+                loadedData.current.analytics = true
+                const analytics = await api.getAnalytics().catch(() => ({ violations: [] }))
+                setAnalyticsData(analytics)
               }
             })(),
           ])
@@ -408,6 +420,25 @@ export default function SupervisorDashboard() {
     fetchAllData()
   }
 
+  const handleExportCsv = async () => {
+    if (isDemoMode) {
+      setExportMessage({ type: 'error', text: 'CSV export is not available in demo mode.' })
+      return
+    }
+    setExportingCsv(true)
+    setExportMessage(null)
+    try {
+      const blob = await api.downloadCsv()
+      triggerDownload(blob, 'supervisor-inspections.csv')
+      setExportMessage({ type: 'success', text: 'CSV export started. Your download should begin shortly.' })
+    } catch (error) {
+      console.error('Failed to export CSV:', error)
+      setExportMessage({ type: 'error', text: error instanceof Error ? error.message : 'Failed to export CSV' })
+    } finally {
+      setExportingCsv(false)
+    }
+  }
+
   // Filter queue
   const filteredQueue = useMemo(() => {
     let filtered = [...queue]
@@ -459,6 +490,9 @@ export default function SupervisorDashboard() {
             <Button variant="outline" className="border-white/20 text-white bg-white/5 hover:bg-white/10" onClick={fetchAllData}>
               <RefreshCw className="mr-2 h-4 w-4" /> Refresh
             </Button>
+            <Button variant="outline" className="border-white/20 text-white bg-white/5 hover:bg-white/10" onClick={handleExportCsv} disabled={exportingCsv}>
+              <Download className="mr-2 h-4 w-4" /> {exportingCsv ? 'Exporting…' : 'Export CSV'}
+            </Button>
             <Dialog open={assignDialogOpen} onOpenChange={(open) => { setAssignDialogOpen(open); if (open) loadAssignmentData() }}>
               <DialogTrigger asChild>
                 <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white">
@@ -508,6 +542,12 @@ export default function SupervisorDashboard() {
             </Dialog>
           </div>
         </div>
+
+        {exportMessage && (
+          <div className={`mb-6 rounded-lg border p-4 text-sm ${exportMessage.type === 'error' ? 'border-red-500/30 bg-red-500/10 text-red-300' : 'border-green-500/30 bg-green-500/10 text-green-300'}`}>
+            {exportMessage.text}
+          </div>
+        )}
 
         {/* KPI Cards - Row 1 */}
         <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-4">
@@ -693,8 +733,9 @@ export default function SupervisorDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-center h-48">
+                    {dashboardData?.trustKpis?.assessed > 0 ? (
                     <div className="text-center">
-                      <div className="text-5xl font-bold text-white mb-1">{dashboardData?.trustKpis?.averageScore?.toFixed(1) || '—'}</div>
+                      <div className="text-5xl font-bold text-white mb-1">{dashboardData?.trustKpis?.averageScore?.toFixed(1)}</div>
                       <p className="text-sm text-white/50">Average Trust Score</p>
                       <div className="mt-3 flex gap-4 justify-center">
                         <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
@@ -705,6 +746,12 @@ export default function SupervisorDashboard() {
                         </Badge>
                       </div>
                     </div>
+                    ) : (
+                    <div className="text-center">
+                      <div className="text-4xl font-bold text-white/40 mb-1">Not yet calculated</div>
+                      <p className="text-sm text-white/30">Trust scores will appear here after the Trust Evolution Agent processes inspector performance data.</p>
+                    </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -845,10 +892,11 @@ export default function SupervisorDashboard() {
                           {/* Trust Score */}
                           <div className="text-center">
                             <div className={`text-lg font-bold ${
-                              (item.trustScore || 0) >= 90 ? 'text-green-400' :
-                              (item.trustScore || 0) >= 70 ? 'text-yellow-400' : 'text-red-400'
+                              item.trustScore == null ? 'text-white/40' :
+                              item.trustScore >= 90 ? 'text-green-400' :
+                              item.trustScore >= 70 ? 'text-yellow-400' : 'text-red-400'
                             }`}>
-                              {item.trustScore || '—'}
+                              {item.trustScore == null ? 'Not yet calculated' : item.trustScore}
                             </div>
                             <div className="text-xs text-white/40">Trust</div>
                           </div>
@@ -958,30 +1006,36 @@ export default function SupervisorDashboard() {
                 if (an) return 1
                 if (bn) return -1
                 return (b.currentTrust || 0) - (a.currentTrust || 0)
-              }).slice(0, 25).map((inspector: any) => (
-                <Card key={inspector.id} className={`bg-white/5 border backdrop-blur-xl ${
-                  (inspector.currentTrust || 0) >= 90 ? 'border-green-500/30' :
-                  (inspector.currentTrust || 0) >= 70 ? 'border-yellow-500/30' : 'border-red-500/30'
-                }`}>
+              }).slice(0, 25).map((inspector: any) => {
+                const hasTrust = inspector.currentTrust != null
+                const trustScore = inspector.currentTrust || 0
+                const borderColor = hasTrust ? (
+                  trustScore >= 90 ? 'border-green-500/30' :
+                  trustScore >= 70 ? 'border-yellow-500/30' : 'border-red-500/30'
+                ) : 'border-white/10'
+                const textColor = hasTrust ? (
+                  trustScore >= 90 ? 'text-green-400' :
+                  trustScore >= 70 ? 'text-yellow-400' : 'text-red-400'
+                ) : 'text-white/40'
+                const barColor = hasTrust ? (
+                  trustScore >= 90 ? 'bg-green-500' :
+                  trustScore >= 70 ? 'bg-yellow-500' : 'bg-red-500'
+                ) : 'bg-white/20'
+                return (
+                <Card key={inspector.id} className={`bg-white/5 border backdrop-blur-xl ${borderColor}`}>
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <h3 className="text-lg font-semibold text-white">{inspector.name}</h3>
                         <p className="text-sm text-white/50">Trust Score</p>
                       </div>
-                      <div className={`text-3xl font-bold ${
-                        (inspector.currentTrust || 0) >= 90 ? 'text-green-400' :
-                        (inspector.currentTrust || 0) >= 70 ? 'text-yellow-400' : 'text-red-400'
-                      }`}>
-                        {inspector.currentTrust || '—'}
+                      <div className={`text-3xl font-bold ${textColor}`}>
+                        {hasTrust ? trustScore.toFixed(0) : 'Not yet calculated'}
                       </div>
                     </div>
                     <div className="h-2 bg-white/5 rounded-full overflow-hidden mb-4">
-                      <div className={`h-full rounded-full transition-all ${
-                        (inspector.currentTrust || 0) >= 90 ? 'bg-green-500' :
-                        (inspector.currentTrust || 0) >= 70 ? 'bg-yellow-500' : 'bg-red-500'
-                      }`}
-                      style={{ width: `${inspector.currentTrust || 0}%` }}
+                      <div className={`h-full rounded-full transition-all ${barColor}`}
+                        style={{ width: `${hasTrust ? trustScore : 0}%` }}
                       />
                     </div>
                     <div className="flex justify-between text-sm text-white/40">
@@ -999,7 +1053,7 @@ export default function SupervisorDashboard() {
                     )}
                   </CardContent>
                 </Card>
-              ))}
+              )})}
             </div>
           </TabsContent>
 
@@ -1034,15 +1088,15 @@ export default function SupervisorDashboard() {
               </Card>
               <Card className="bg-white/5 border-white/10 backdrop-blur-xl">
                 <CardHeader>
-                  <CardTitle className="text-white">Department Performance</CardTitle>
-                  <CardDescription className="text-white/50">Compliance rates by department</CardDescription>
+                  <CardTitle className="text-white">{analyticsData?.departmentName} Compliance Breakdown</CardTitle>
+                  <CardDescription className="text-white/50">Compliance across key inspection areas</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart data={executiveData?.departmentPerformance?.map((d: any) => ({ ...d, complianceRate: d.complianceRate || 0 })) || []}>
+                      <RadarChart data={analyticsData?.complianceBreakdown || []}>
                         <PolarGrid stroke="rgba(255,255,255,0.1)" />
-                        <PolarAngleAxis dataKey="name" stroke="rgba(255,255,255,0.6)" tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 10 }} />
+                        <PolarAngleAxis dataKey="category" stroke="rgba(255,255,255,0.6)" tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 10 }} />
                         <PolarRadiusAxis stroke="rgba(255,255,255,0.2)" />
                         <Radar name="Compliance Rate" dataKey="complianceRate" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.3} />
                       </RadarChart>
@@ -1083,11 +1137,15 @@ export default function SupervisorDashboard() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={[
-                            { name: 'Critical', value: 23, color: '#ef4444' },
-                            { name: 'High', value: 45, color: '#f97316' },
-                            { name: 'Medium', value: 67, color: '#eab308' },
-                            { name: 'Low', value: 89, color: '#22c55e' },
+                          data={analyticsData?.violations?.map((v: any) => ({
+                            name: v.severity.charAt(0) + v.severity.slice(1).toLowerCase(),
+                            value: v.count || 0,
+                            color: v.severity === 'CRITICAL' ? '#ef4444' : v.severity === 'HIGH' ? '#f97316' : v.severity === 'MEDIUM' ? '#eab308' : '#22c55e',
+                          })) || [
+                            { name: 'Critical', value: 0, color: '#ef4444' },
+                            { name: 'High', value: 0, color: '#f97316' },
+                            { name: 'Medium', value: 0, color: '#eab308' },
+                            { name: 'Low', value: 0, color: '#22c55e' },
                           ]}
                           cx="50%"
                           cy="50%"

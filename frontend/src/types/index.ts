@@ -152,6 +152,24 @@ export interface Review {
   reviewedAt: string
 }
 
+export interface ComplianceBreakdownItem {
+  category: string
+  complianceRate: number
+  inspectionCount: number
+}
+
+export interface SupervisorAnalytics {
+  totalInspections: number
+  completedInspections: number
+  approvalRate: number | null
+  averageVerificationConfidence: number | null
+  evidenceMismatchPercent: number
+  violations: { severity: string; count: number }[]
+  monthlyTrends: { month: string; inspections: number; completed: number }[]
+  departmentName: string
+  complianceBreakdown: ComplianceBreakdownItem[]
+}
+
 export interface TrustScore {
   id: string
   inspectorId: string
