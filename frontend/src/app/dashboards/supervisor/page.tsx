@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
+
 import { useAuth } from '@/contexts/auth-context'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/shared/header'
@@ -12,8 +13,10 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+
 import { api, triggerDownload } from '@/lib/api-client'
 import { Inspection, User, Site, InspectionTemplate, SupervisorAnalytics } from '@/types'
+
 import { 
   AlertTriangle, CheckCircle, XCircle, TrendingUp, Users, FileText, Eye, Plus, Calendar,
   Shield, Activity, Brain, MapPin, Clock, BarChart3, Network, Search, Filter, Download,
@@ -63,12 +66,16 @@ export default function SupervisorDashboard() {
   const [trustData, setTrustData] = useState<any[]>([])
   const [heatmapData, setHeatmapData] = useState<any[]>([])
   const [executiveData, setExecutiveData] = useState<any>(null)
+
   const [analyticsData, setAnalyticsData] = useState<SupervisorAnalytics | null>(null)
+
   const [notifications, setNotifications] = useState<any[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [memoryGraph, setMemoryGraph] = useState<any>(null)
   const [loadingData, setLoadingData] = useState(true)
+
   const loadedData = useRef<Record<string, boolean>>({})
+
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState('')
@@ -90,9 +97,11 @@ export default function SupervisorDashboard() {
   const [reviewAction, setReviewAction] = useState('')
   const [reviewComments, setReviewComments] = useState('')
 
+
   // Export state
   const [exportingCsv, setExportingCsv] = useState(false)
   const [exportMessage, setExportMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
 
   useEffect(() => {
     if (!loading && (!user || user.role !== 'SUPERVISOR') && !isDemoMode) {
@@ -102,6 +111,7 @@ export default function SupervisorDashboard() {
 
   useEffect(() => {
     if (user || isDemoMode) {
+
       fetchInitialData()
     }
   }, [user, isDemoMode])
@@ -196,6 +206,7 @@ export default function SupervisorDashboard() {
     setSites(Array.isArray(sitesRes) ? sitesRes : [])
     setTemplates(Array.isArray(templatesRes) ? templatesRes : [])
   }
+
 
   const fetchAllData = async () => {
     setLoadingData(true)
@@ -328,7 +339,9 @@ export default function SupervisorDashboard() {
         setNotifications(notifs.notifications || [])
         setUnreadCount(notifs.unreadCount || 0)
         setMemoryGraph(graph)
+
         loadedData.current = { ...loadedData.current, queue: true, trust: true, heatmap: true, executive: true, assignment: true }
+
 
         // Fetch assignment data
         const [inspectorsRes, sitesRes, templatesRes] = await Promise.all([
@@ -420,6 +433,7 @@ export default function SupervisorDashboard() {
     fetchAllData()
   }
 
+
   const handleExportCsv = async () => {
     if (isDemoMode) {
       setExportMessage({ type: 'error', text: 'CSV export is not available in demo mode.' })
@@ -438,6 +452,7 @@ export default function SupervisorDashboard() {
       setExportingCsv(false)
     }
   }
+
 
   // Filter queue
   const filteredQueue = useMemo(() => {
@@ -490,10 +505,12 @@ export default function SupervisorDashboard() {
             <Button variant="outline" className="border-white/20 text-white bg-white/5 hover:bg-white/10" onClick={fetchAllData}>
               <RefreshCw className="mr-2 h-4 w-4" /> Refresh
             </Button>
+
             <Button variant="outline" className="border-white/20 text-white bg-white/5 hover:bg-white/10" onClick={handleExportCsv} disabled={exportingCsv}>
               <Download className="mr-2 h-4 w-4" /> {exportingCsv ? 'Exporting…' : 'Export CSV'}
             </Button>
             <Dialog open={assignDialogOpen} onOpenChange={(open) => { setAssignDialogOpen(open); if (open) loadAssignmentData() }}>
+
               <DialogTrigger asChild>
                 <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white">
                   <Plus className="mr-2 h-4 w-4" /> Assign Inspection
@@ -543,6 +560,7 @@ export default function SupervisorDashboard() {
           </div>
         </div>
 
+
         {exportMessage && (
           <div className={`mb-6 rounded-lg border p-4 text-sm ${exportMessage.type === 'error' ? 'border-red-500/30 bg-red-500/10 text-red-300' : 'border-green-500/30 bg-green-500/10 text-green-300'}`}>
             {exportMessage.text}
@@ -551,6 +569,7 @@ export default function SupervisorDashboard() {
 
         {/* KPI Cards - Row 1 */}
         <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-4">
+
           <Card className="bg-white/5 border-white/10 backdrop-blur-xl col-span-1 lg:col-span-2">
             <CardContent className="p-4 flex items-center justify-between">
               <div>
@@ -596,6 +615,7 @@ export default function SupervisorDashboard() {
             </CardContent>
           </Card>
         </div>
+
 
         {/* KPI Cards - Row 2 */}
         <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-8">
@@ -647,6 +667,7 @@ export default function SupervisorDashboard() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={(value) => { setActiveTab(value); loadTabData(value) }} className="space-y-6">
+
           <TabsList className="bg-white/5 border border-white/10">
             <TabsTrigger value="overview" className="text-white/60 data-[state=active]:text-white data-[state=active]:bg-purple-500/20">Overview</TabsTrigger>
             <TabsTrigger value="queue" className="text-white/60 data-[state=active]:text-white data-[state=active]:bg-purple-500/20">Review Queue</TabsTrigger>
@@ -712,7 +733,9 @@ export default function SupervisorDashboard() {
               <CardContent>
                 <div className="h-64">
                   <ResponsiveContainer width="100%" height="100%">
+
                     <BarChart data={(dashboardData?.inspectorProductivity || []).slice().sort((a: any, b: any) => (b.inspections || 0) - (a.inspections || 0)).slice(0, 10)}>
+
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                       <XAxis dataKey="name" stroke="rgba(255,255,255,0.4)" tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 12 }} />
                       <YAxis stroke="rgba(255,255,255,0.4)" />
@@ -733,9 +756,11 @@ export default function SupervisorDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-center h-48">
+
                     {dashboardData?.trustKpis?.assessed > 0 ? (
                     <div className="text-center">
                       <div className="text-5xl font-bold text-white mb-1">{dashboardData?.trustKpis?.averageScore?.toFixed(1)}</div>
+
                       <p className="text-sm text-white/50">Average Trust Score</p>
                       <div className="mt-3 flex gap-4 justify-center">
                         <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
@@ -746,12 +771,14 @@ export default function SupervisorDashboard() {
                         </Badge>
                       </div>
                     </div>
+
                     ) : (
                     <div className="text-center">
                       <div className="text-4xl font-bold text-white/40 mb-1">Not yet calculated</div>
                       <p className="text-sm text-white/30">Trust scores will appear here after the Trust Evolution Agent processes inspector performance data.</p>
                     </div>
                     )}
+
                   </div>
                 </CardContent>
               </Card>
@@ -892,11 +919,13 @@ export default function SupervisorDashboard() {
                           {/* Trust Score */}
                           <div className="text-center">
                             <div className={`text-lg font-bold ${
+
                               item.trustScore == null ? 'text-white/40' :
                               item.trustScore >= 90 ? 'text-green-400' :
                               item.trustScore >= 70 ? 'text-yellow-400' : 'text-red-400'
                             }`}>
                               {item.trustScore == null ? 'Not yet calculated' : item.trustScore}
+
                             </div>
                             <div className="text-xs text-white/40">Trust</div>
                           </div>
@@ -910,6 +939,7 @@ export default function SupervisorDashboard() {
                             <Eye className="mr-1 h-4 w-4" /> Review
                           </Button>
                           <Button
+
                             variant="outline"
                             className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
                             onClick={() => router.push(`/dashboards/supervisor/${item.inspectionId}?editReport=true`)}
@@ -917,6 +947,7 @@ export default function SupervisorDashboard() {
                             <FileText className="mr-1 h-4 w-4" /> Edit Report
                           </Button>
                           <Button
+
                             className="bg-green-500 hover:bg-green-600 text-white"
                             onClick={() => {
                               setReviewDialog({ open: true, inspection: item })
@@ -999,6 +1030,7 @@ export default function SupervisorDashboard() {
           {/* TRUST SCORES TAB */}
           <TabsContent value="trust" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
               {trustData.slice().sort((a: any, b: any) => {
                 const an = a.currentTrust == null
                 const bn = b.currentTrust == null
@@ -1023,12 +1055,14 @@ export default function SupervisorDashboard() {
                 ) : 'bg-white/20'
                 return (
                 <Card key={inspector.id} className={`bg-white/5 border backdrop-blur-xl ${borderColor}`}>
+
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
                       <div>
                         <h3 className="text-lg font-semibold text-white">{inspector.name}</h3>
                         <p className="text-sm text-white/50">Trust Score</p>
                       </div>
+
                       <div className={`text-3xl font-bold ${textColor}`}>
                         {hasTrust ? trustScore.toFixed(0) : 'Not yet calculated'}
                       </div>
@@ -1036,6 +1070,7 @@ export default function SupervisorDashboard() {
                     <div className="h-2 bg-white/5 rounded-full overflow-hidden mb-4">
                       <div className={`h-full rounded-full transition-all ${barColor}`}
                         style={{ width: `${hasTrust ? trustScore : 0}%` }}
+
                       />
                     </div>
                     <div className="flex justify-between text-sm text-white/40">
@@ -1053,7 +1088,9 @@ export default function SupervisorDashboard() {
                     )}
                   </CardContent>
                 </Card>
+
               )})}
+
             </div>
           </TabsContent>
 
@@ -1088,15 +1125,19 @@ export default function SupervisorDashboard() {
               </Card>
               <Card className="bg-white/5 border-white/10 backdrop-blur-xl">
                 <CardHeader>
+
                   <CardTitle className="text-white">{analyticsData?.departmentName} Compliance Breakdown</CardTitle>
                   <CardDescription className="text-white/50">Compliance across key inspection areas</CardDescription>
+
                 </CardHeader>
                 <CardContent>
                   <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
+
                       <RadarChart data={analyticsData?.complianceBreakdown || []}>
                         <PolarGrid stroke="rgba(255,255,255,0.1)" />
                         <PolarAngleAxis dataKey="category" stroke="rgba(255,255,255,0.6)" tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 10 }} />
+
                         <PolarRadiusAxis stroke="rgba(255,255,255,0.2)" />
                         <Radar name="Compliance Rate" dataKey="complianceRate" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.3} />
                       </RadarChart>
@@ -1113,7 +1154,9 @@ export default function SupervisorDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
+
                     {heatmapData.slice().sort((a: any, b: any) => (b.score || 0) - (a.score || 0)).slice(0, 20).map((zone, idx) => (
+
                       <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-white/5">
                         <div>
                           <p className="text-white font-medium">{zone.name}</p>
@@ -1137,6 +1180,7 @@ export default function SupervisorDashboard() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
+
                           data={analyticsData?.violations?.map((v: any) => ({
                             name: v.severity.charAt(0) + v.severity.slice(1).toLowerCase(),
                             value: v.count || 0,
@@ -1146,6 +1190,7 @@ export default function SupervisorDashboard() {
                             { name: 'High', value: 0, color: '#f97316' },
                             { name: 'Medium', value: 0, color: '#eab308' },
                             { name: 'Low', value: 0, color: '#22c55e' },
+
                           ]}
                           cx="50%"
                           cy="50%"

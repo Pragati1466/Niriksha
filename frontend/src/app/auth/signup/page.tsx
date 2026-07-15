@@ -17,6 +17,9 @@ export default function SignupPage() {
   const [password, setPassword] = useState('')
   const [role, setRole] = useState('')
   const [error, setError] = useState('')
+
+  const [success, setSuccess] = useState(false)
+
   const [loading, setLoading] = useState(false)
   const [demoRole, setDemoRole] = useState<'INSPECTOR' | 'SUPERVISOR' | 'ADMIN'>('SUPERVISOR')
   const { signup, enterDemoMode } = useAuth()
@@ -35,7 +38,12 @@ export default function SignupPage() {
 
     try {
       await signup(name, email, password, role)
-      router.push('/')
+
+      setSuccess(true)
+      setTimeout(() => {
+        router.push('/auth/login')
+      }, 2000)
+
     } catch (err: any) {
       setError(err.message || 'Signup failed. Please try again.')
     } finally {
@@ -173,6 +181,14 @@ export default function SignupPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+
+              {success && (
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 text-sm p-3 rounded-lg">
+                  ✓ Account created successfully! Redirecting to login page...
+                </div>
+              )}
+
 
               {error && (
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm p-3 rounded-lg">

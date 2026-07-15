@@ -7,6 +7,7 @@ import { Activity, Wifi, WifiOff } from 'lucide-react'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
+
 interface LiveData {
   activeInspections: number
   pendingReviews: number

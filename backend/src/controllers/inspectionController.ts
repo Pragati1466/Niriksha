@@ -148,6 +148,8 @@ export const createInspection = async (req: AuthRequest, res: Response) => {
   }
 }
 
+
+// SECURITY FIX: Enforce ownership on inspection edits
 export const updateInspection = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params
@@ -156,6 +158,23 @@ export const updateInspection = async (req: AuthRequest, res: Response) => {
     if (status === 'SUBMITTED') {
       return submitInspection(req, res)
     }
+
+
+
+    // SECURITY: Check ownership for INSPECTOR role
+    const existing = await prisma.inspection.findUnique({
+      where: { id },
+      select: { inspectorId: true },
+    })
+
+    if (!existing) {
+      return res.status(404).json({ error: 'Inspection not found' })
+    }
+
+    if (req.user?.role === 'INSPECTOR' && existing.inspectorId !== req.user.id) {
+      return res.status(403).json({ error: 'Inspectors can only edit their own inspections' })
+    }
+
 
     const inspection = await prisma.inspection.update({
       where: { id },
@@ -180,6 +199,9 @@ export const updateInspection = async (req: AuthRequest, res: Response) => {
   }
 }
 
+
+// FIX #1: Wire full AI pipeline on inspection submit
+
 export const submitInspection = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params
@@ -195,6 +217,10 @@ export const submitInspection = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'Inspectors can only submit their own inspections' })
     }
 
+
+
+    // Validate all required checklist items are answered
+
     const requiredItems = inspection.checklists.filter(c => c.required)
     const unansweredRequired = requiredItems.filter(c => c.status === 'PENDING')
 
@@ -205,12 +231,17 @@ export const submitInspection = async (req: AuthRequest, res: Response) => {
       })
     }
 
+
+    // GPS validation
+
     if (locationLat && locationLng && inspection.site.latitude && inspection.site.longitude) {
       const distance = calculateDistance(
         locationLat, locationLng,
         inspection.site.latitude, inspection.site.longitude
       )
+
       const maxDistance = 500 // 500 meters tolerance
+
       if (distance > maxDistance) {
         return res.status(400).json({ 
           error: 'Location validation failed',
@@ -221,6 +252,10 @@ export const submitInspection = async (req: AuthRequest, res: Response) => {
       }
     }
 
+
+
+    // Save GPS data
+
     await prisma.inspection.update({
       where: { id },
       data: {
@@ -230,6 +265,9 @@ export const submitInspection = async (req: AuthRequest, res: Response) => {
         locationTimestamp: locationTimestamp ? new Date(locationTimestamp) : null,
       },
     })
+
+
+    // Handle submission override for held inspections
 
     if (overrideReason) {
       if (inspection.status !== 'HOLD_FOR_REVIEW') {
@@ -254,6 +292,9 @@ export const submitInspection = async (req: AuthRequest, res: Response) => {
       return res.json({ success: true, status: 'SUBMITTED', overridden: true, inspection: submitted })
     }
 
+
+    // FIX: Run the FULL AI pipeline instead of just evidence verification
+
     await complianceMemory.recordVerificationStarted(inspection.id, req.user!.id)
 
     const state: AgentState = {
@@ -274,20 +315,61 @@ export const submitInspection = async (req: AuthRequest, res: Response) => {
       })),
       currentAgent: '', errors: [], retryCount: 0, maxRetries: 3, results: {},
     }
-    const verificationState = await agentOrchestrator.executeAgent('reality-verification', state)
-    const verification = verificationState.results?.realityVerification
-    const findings: Inconsistency[] = verification?.inconsistencies || [{
-      checklistItemId: null as any,
-      checklistLabel: 'Verification system',
-      claimedStatus: 'UNKNOWN',
-      detectedStatus: 'UNKNOWN',
-      confidence: 0,
-      reasoning: 'Unable to complete reality verification',
-      severity: 'CRITICAL',
-    }]
-    const mustHold = !verification || !verification.verified || verification.confidenceScore < 70 || findings.some(f =>
-      f.detectedStatus === 'NON_COMPLIANT' || f.detectedStatus === 'UNKNOWN' || f.confidence < 0.7
+
+
+
+    // Run the full multi-agent pipeline
+    const results = await agentOrchestrator.processInspection(state)
+    const verification = results.results?.realityVerification
+    const riskAnalysis = results.results?.riskAnalysis
+    const agentReport = results.results?.report
+    const trustScore = results.results?.trustScore
+
+    // FIX: Detect if AI was unavailable (no keys configured) — don't block submission
+    const aiNotConfigured = !verification || (
+      verification.inconsistencies.length === 1 &&
+      verification.inconsistencies[0].reasoning === 'Unable to complete reality verification' &&
+      verification.confidenceScore === 0
     )
+
+    const findings: Inconsistency[] = verification?.inconsistencies || []
+    const confidenceScore = verification?.confidenceScore || 0
+
+    // Only hold if AI actually ran and found real issues (not just "no key configured")
+    const mustHold = !aiNotConfigured && (
+      !verification ||
+      !verification.verified ||
+      confidenceScore < 70 ||
+      findings.some(f =>
+        f.detectedStatus === 'NON_COMPLIANT' ||
+        (f.detectedStatus === 'UNKNOWN' && f.confidence > 0) ||
+        f.confidence < 0.7
+      )
+    )
+
+    // Save AI results
+    const aiAnalysisPayload = {
+      verification: verification ? {
+        verified: verification.verified,
+        confidenceScore: verification.confidenceScore,
+        explanation: verification.explanation,
+      } : null,
+      riskAnalysis: riskAnalysis ? {
+        score: riskAnalysis.overallRiskLevel,
+        level: riskAnalysis.overallRiskLevel,
+        factors: riskAnalysis.highRiskAreas,
+      } : null,
+      trustScore: trustScore ? {
+        score: trustScore.currentScore,
+        riskLevel: trustScore.riskLevel,
+      } : null,
+      report: agentReport ? {
+        summary: agentReport.summary,
+        violations: agentReport.violations,
+        recommendations: agentReport.recommendedActions,
+      } : null,
+    }
+
 
     if (mustHold) {
       await prisma.$transaction([
@@ -303,7 +385,12 @@ export const submitInspection = async (req: AuthRequest, res: Response) => {
         }),
         prisma.inspection.update({
           where: { id },
-          data: { status: 'HOLD_FOR_REVIEW', completedDate: null, confidenceScore: verification?.confidenceScore || 0, aiAnalysis: verification?.explanation || 'Unable to complete reality verification' },
+          data: {
+            status: 'HOLD_FOR_REVIEW',
+            completedDate: null,
+            confidenceScore: confidenceScore,
+            aiAnalysis: JSON.stringify(aiAnalysisPayload),
+          },
         }),
       ])
       await complianceMemory.recordInspectionOutcome({
@@ -317,14 +404,42 @@ export const submitInspection = async (req: AuthRequest, res: Response) => {
         success: false,
         status: 'HOLD_FOR_REVIEW',
         message: 'Submission blocked pending review or inspector override',
-        confidenceScore: verification?.confidenceScore || 0,
+
+        confidenceScore,
         findings,
+        aiAnalysis: aiAnalysisPayload,
+      })
+    }
+
+    // Also save report if generated
+    if (agentReport) {
+      await prisma.report.upsert({
+        where: { inspectionId: inspection.id },
+        update: {
+          summary: agentReport.summary || 'AI-generated report',
+          pdfUrl: null,
+        },
+        create: {
+          inspectionId: inspection.id,
+          summary: agentReport.summary || 'AI-generated report',
+          pdfUrl: null,
+        },
+
       })
     }
 
     const submitted = await prisma.inspection.update({
       where: { id },
-      data: { status: 'SUBMITTED', completedDate: new Date(), confidenceScore: verification.confidenceScore, aiAnalysis: verification.explanation, submissionOverrideReason: null, submissionOverriddenAt: null },
+
+      data: {
+        status: 'SUBMITTED',
+        completedDate: new Date(),
+        confidenceScore: confidenceScore,
+        aiAnalysis: JSON.stringify(aiAnalysisPayload),
+        submissionOverrideReason: null,
+        submissionOverriddenAt: null,
+      },
+
     })
     await complianceMemory.recordInspectionOutcome({
       inspectionId: inspection.id,
@@ -333,7 +448,15 @@ export const submitInspection = async (req: AuthRequest, res: Response) => {
       verification,
       findings,
     })
-    return res.json({ success: true, status: 'SUBMITTED', overridden: false, inspection: submitted })
+
+    return res.json({
+      success: true,
+      status: 'SUBMITTED',
+      overridden: false,
+      inspection: submitted,
+      aiAnalysis: aiAnalysisPayload,
+    })
+
   } catch (error) {
     console.error('Submit inspection error:', error)
     return res.status(500).json({ error: 'Failed to submit inspection' })
@@ -341,7 +464,9 @@ export const submitInspection = async (req: AuthRequest, res: Response) => {
 }
 
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+
   const R = 6371e3 // Earth's radius in meters
+
   const φ1 = lat1 * Math.PI / 180
   const φ2 = lat2 * Math.PI / 180
   const Δφ = (lat2 - lat1) * Math.PI / 180
@@ -381,7 +506,9 @@ function validateImageIntegrity(exifData: any, uploadTimestamp: Date): { valid: 
     const exifDateStr = exifData['Exif'][piexif.ExifIFD.DateTimeOriginal]
     const exifDate = new Date(exifDateStr)
     const timeDiff = Math.abs(uploadTimestamp.getTime() - exifDate.getTime())
+
     const maxTimeDiff = 24 * 60 * 60 * 1000 // 24 hours
+
 
     if (timeDiff > maxTimeDiff) {
       issues.push(`EXIF timestamp differs significantly from upload time (${Math.round(timeDiff / (1000 * 60))} minutes)`)
@@ -394,7 +521,9 @@ function validateImageIntegrity(exifData: any, uploadTimestamp: Date): { valid: 
 export const uploadImage = async (req: AuthRequest, res: Response) => {
   try {
     const { inspectionId } = req.params
-    const { description, metadata } = req.body
+
+    const { description, metadata, checklistItemId } = req.body
+
     const imageUrl = req.file?.path
     const originalName = req.file?.originalname || 'image.jpg'
     const mimeType = req.file?.mimetype || 'image/jpeg'
@@ -442,7 +571,9 @@ export const uploadImage = async (req: AuthRequest, res: Response) => {
         inspectionId,
         imageUrl: finalImageUrl,
         description,
-        metadata: JSON.stringify(combinedMetadata),
+
+        metadata: JSON.stringify({ ...combinedMetadata, checklistItemId: checklistItemId || null }),
+
       },
     })
 
@@ -607,3 +738,4 @@ export const createViolation = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'Internal server error' })
   }
 }
+

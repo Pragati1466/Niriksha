@@ -17,13 +17,18 @@ import agentRoutes from './routes/agents'
 import aiFeaturesRoutes from './routes/ai-features'
 import supervisorRoutes from './routes/supervisor'
 import extraFeaturesRoutes from './routes/extra-features'
+
+import adminUsersRoutes from './routes/admin-users'
+
 import { initWebSocket } from './services/websocketService'
 import { setupSwagger } from './routes/swagger'
 
 dotenv.config()
 
 const app = express()
+
 const PORT = process.env.PORT || 3001
+
 
 console.log('Environment PORT:', process.env.PORT)
 console.log('Using PORT:', PORT)
@@ -38,14 +43,22 @@ app.use(helmet({
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
-  message: 'Too many requests from this IP, please try again later.',
+
+  handler: (req, res) => {
+    res.status(429).json({ error: 'Too many requests from this IP, please try again later.' })
+  },
+
 })
 app.use('/api/', limiter)
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
-  message: 'Too many authentication attempts, please try again later.',
+
+  handler: (req, res) => {
+    res.status(429).json({ error: 'Too many authentication attempts, please try again later.' })
+  },
+
 })
 
 app.use(cors({
@@ -92,6 +105,9 @@ app.use('/api/agents', agentRoutes)
 app.use('/api/ai-features', aiFeaturesRoutes)
 app.use('/api/supervisor', supervisorRoutes)
 app.use('/api/extra', extraFeaturesRoutes)
+
+app.use('/api/admin/users', adminUsersRoutes)
+
 
 setupSwagger(app)
 
