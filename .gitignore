@@ -52,4 +52,4 @@ uploads/
 Thumbs.db
 
 # Local SQLite database
-backend/prisma/dev.db
+backend/prisma/dev-backup 225MB.db

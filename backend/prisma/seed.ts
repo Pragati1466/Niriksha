@@ -357,7 +357,8 @@ async function seedInspections() {
   
   await new Promise<void>((resolve, reject) => {
     stream.on('data', (row: any) => {
-      inspections.push({
+      if (processed + inspections.length < 22000) {
+        inspections.push({
     id: row.inspection_id,
     siteId: row.establishment_id,
     inspectorId: row.inspector_id,
@@ -381,6 +382,7 @@ async function seedInspections() {
         ? new Date(row.created_at)
         : new Date()
 })
+      }
 
       if (inspections.length >= batchSize) {
         stream.pause()
