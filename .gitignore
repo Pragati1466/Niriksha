@@ -50,3 +50,6 @@ uploads/
 
 # OS
 Thumbs.db
+
+# Local SQLite database
+backend/prisma/dev.db
