@@ -152,6 +152,7 @@ export interface Review {
   reviewedAt: string
 }
 
+
 export interface ComplianceBreakdownItem {
   category: string
   complianceRate: number
@@ -169,6 +170,7 @@ export interface SupervisorAnalytics {
   departmentName: string
   complianceBreakdown: ComplianceBreakdownItem[]
 }
+
 
 export interface TrustScore {
   id: string

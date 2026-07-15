@@ -1,4 +1,6 @@
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+
 
 type RequestOptions = {
   method?: string
@@ -177,12 +179,15 @@ export const api = {
   // Reports
   downloadReport: async (inspectionId: string) => {
     const token = localStorage.getItem('token')
+
     const res = await fetch(`${API_BASE}/api/supervisor/inspections/${inspectionId}/export/pdf`, {
+
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!res.ok) throw new Error('Failed to download report')
     return res.blob()
   },
+
 
   downloadCsv: async () => {
     const token = localStorage.getItem('token')
@@ -208,6 +213,7 @@ export const api = {
     if (!res.ok) throw new Error('Failed to upload image')
     return res.json()
   },
+
 }
 
 // Triggers a browser download for a Blob returned by an export endpoint.
@@ -220,4 +226,5 @@ export function triggerDownload(blob: Blob, filename: string) {
   link.click()
   document.body.removeChild(link)
   URL.revokeObjectURL(url)
+
 }

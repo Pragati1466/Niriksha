@@ -25,7 +25,9 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from 'recharts'
 
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+
 
 const COLORS = {
   critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#22c55e',

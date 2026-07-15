@@ -3,9 +3,18 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import prisma from '../utils/prisma'
 
+const ALLOWED_SIGNUP_ROLES = ['INSPECTOR']
+
 export const signup = async (req: Request, res: Response) => {
   try {
     const { name, email, password, role, departmentId } = req.body
+
+    // Security: public signup only allows inspector accounts
+    if (role && !ALLOWED_SIGNUP_ROLES.includes(role)) {
+      return res.status(403).json({
+        error: 'Public registration only allows INSPECTOR role. Contact admin for other roles.'
+      })
+    }
 
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -22,7 +31,7 @@ export const signup = async (req: Request, res: Response) => {
         name,
         email,
         password: hashedPassword,
-        role,
+        role: 'INSPECTOR',
         departmentId: departmentId || null,
       },
     })
@@ -42,11 +51,13 @@ export const signup = async (req: Request, res: Response) => {
         role: user.role,
       },
     })
+
   } catch (error) {
     console.error('Signup error:', error)
     res.status(500).json({ error: 'Internal server error' })
   }
 }
+
 
 export const login = async (req: Request, res: Response) => {
   try {
@@ -81,6 +92,7 @@ export const login = async (req: Request, res: Response) => {
         role: user.role,
       },
     })
+
   } catch (error) {
     console.error('Login error:', error)
     res.status(500).json({ error: 'Internal server error' })

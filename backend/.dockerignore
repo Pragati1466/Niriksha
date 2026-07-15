@@ -1,13 +1,29 @@
 node_modules
-npm-debug.log
 .git
 .gitignore
+
+# Environment files
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Logs
+npm-debug.log
+*.log
+
+# Build output
+dist
+
+# Uploads
 uploads
+
+# Prisma
 prisma/migrations
+
+# TypeScript
 *.tsbuildinfo
+
+# OS
 .DS_Store

@@ -29,7 +29,7 @@ export class OfflineStorage {
     this.loadFromStorage()
   }
 
-  private loadFromStorage() {
+private loadFromStorage() {
   if (typeof window === 'undefined') return
 
   try {
@@ -40,7 +40,7 @@ export class OfflineStorage {
   }
 }
 
-  private saveToStorage() {
+private saveToStorage() {
   if (typeof window === 'undefined') return
 
   try {
@@ -125,9 +125,11 @@ export class OfflineStorage {
   }
 
   isOnline(): boolean {
+
   if (typeof window === 'undefined') return true
   return navigator.onLine
 }
+
 
   getQueueSize(): number {
     return this.queue.length

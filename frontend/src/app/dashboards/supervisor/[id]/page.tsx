@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
+
 import { Header } from '@/components/shared/header'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,20 +14,25 @@ import { Label } from '@/components/ui/label'
 import { Inspection, InspectionChecklist } from '@/types'
 import { InspectionStatusBadge } from '@/components/inspections/inspection-status-badge'
 import { VerificationFindingsPanel } from '@/components/inspections/verification-findings-panel'
+
 import { ArrowLeft, CheckCircle, XCircle, AlertTriangle, FileText, Camera, ShieldCheck, User, Calendar, MapPin, MessageSquare, Send, TrendingUp, Download } from 'lucide-react'
 import { getApiUrl } from '@/lib/api'
 import { triggerDownload } from '@/lib/api-client'
+
 
 export default function SupervisorInspectionDetailPage() {
   const params = useParams()
   const id = Array.isArray(params.id) ? params.id[0] : params.id
   const router = useRouter()
+
   const searchParams = useSearchParams()
+
   const [inspection, setInspection] = useState<Inspection | null>(null)
   const [loading, setLoading] = useState(true)
   const [approveDialogOpen, setApproveDialogOpen] = useState(false)
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false)
   const [requestEvidenceDialogOpen, setRequestEvidenceDialogOpen] = useState(false)
+
   const [editReportDialogOpen, setEditReportDialogOpen] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
   const [evidenceRequest, setEvidenceRequest] = useState('')
@@ -42,6 +49,7 @@ export default function SupervisorInspectionDetailPage() {
       setEditReportDialogOpen(true)
     }
   }, [loading, inspection])
+
 
   useEffect(() => {
     if (id) void fetchInspection()
@@ -83,15 +91,19 @@ export default function SupervisorInspectionDetailPage() {
       if (!token) {
         throw new Error('No authentication token found. Please login again.')
       }
+
       const response = await fetch(`${getApiUrl()}/api/supervisor/inspections/${id}`, {
+
         headers: { Authorization: `Bearer ${token}` }
       })
       if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Failed to load inspection')
       }
+
       const data = await response.json()
       setInspection(data.inspection)
+
     } catch (error) {
       console.error('Failed to fetch inspection:', error)
       setMessage({ type: 'error', text: error instanceof Error ? error.message : 'Failed to load inspection' })
@@ -104,15 +116,19 @@ export default function SupervisorInspectionDetailPage() {
     setProcessing(true)
     try {
       const token = localStorage.getItem('token')
+
       const response = await fetch(`${getApiUrl()}/api/supervisor/inspections/${id}/review`, {
         method: 'POST',
+
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
+
           action: 'APPROVE',
           comments: reviewNote || undefined
+
         }),
       })
       if (!response.ok) {
@@ -139,15 +155,19 @@ export default function SupervisorInspectionDetailPage() {
     setProcessing(true)
     try {
       const token = localStorage.getItem('token')
+
       const response = await fetch(`${getApiUrl()}/api/supervisor/inspections/${id}/review`, {
         method: 'POST',
+
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
+
           action: 'REJECT',
           comments: reviewNote ? `${rejectReason}\n\nReview note: ${reviewNote}` : rejectReason
+
         }),
       })
       if (!response.ok) {
@@ -166,6 +186,7 @@ export default function SupervisorInspectionDetailPage() {
       setProcessing(false)
     }
   }
+
 
   const handleEditReport = async () => {
     if (!reportContent.trim()) {
@@ -211,6 +232,7 @@ export default function SupervisorInspectionDetailPage() {
     }
   }
 
+
   const handleRequestEvidence = async () => {
     if (!evidenceRequest.trim()) {
       setMessage({ type: 'error', text: 'Please describe what additional evidence is needed' })
@@ -219,15 +241,19 @@ export default function SupervisorInspectionDetailPage() {
     setProcessing(true)
     try {
       const token = localStorage.getItem('token')
+
       const response = await fetch(`${getApiUrl()}/api/supervisor/inspections/${id}/review`, {
         method: 'POST',
+
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
+
           action: 'REQUEST_EVIDENCE',
           comments: reviewNote ? `${evidenceRequest}\n\nReview note: ${reviewNote}` : evidenceRequest
+
         }),
       })
       if (!response.ok) {
@@ -246,6 +272,7 @@ export default function SupervisorInspectionDetailPage() {
       setProcessing(false)
     }
   }
+
 
   const handleExportPdf = async () => {
     const demoMode = localStorage.getItem('demoMode') === 'true'
@@ -273,6 +300,7 @@ export default function SupervisorInspectionDetailPage() {
       setProcessing(false)
     }
   }
+
 
   if (loading) {
     return (
@@ -528,6 +556,7 @@ export default function SupervisorInspectionDetailPage() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <Button 
+
                     onClick={() => {
                       const aiContent = typeof inspection.aiAnalysis === 'string' ? inspection.aiAnalysis : ''
                       setReportContent(aiContent)
@@ -541,6 +570,7 @@ export default function SupervisorInspectionDetailPage() {
                     Modify AI Report
                   </Button>
                   <Button 
+
                     onClick={() => setApproveDialogOpen(true)} 
                     className="w-full"
                     disabled={processing}
@@ -624,6 +654,7 @@ export default function SupervisorInspectionDetailPage() {
               </CardContent>
             </Card>
 
+
             {/* Export */}
             <Card>
               <CardHeader>
@@ -642,6 +673,7 @@ export default function SupervisorInspectionDetailPage() {
                 </Button>
               </CardContent>
             </Card>
+
           </div>
         </div>
       </main>
@@ -791,6 +823,7 @@ export default function SupervisorInspectionDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   )
 }

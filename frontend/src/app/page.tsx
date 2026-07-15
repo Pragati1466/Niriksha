@@ -30,19 +30,25 @@ const stats = [
 ]
 
 export default function Home() {
-  const { user, isDemoMode, enterDemoMode } = useAuth()
+
+  const { user, loading, isDemoMode, enterDemoMode } = useAuth()
+
   const router = useRouter()
   const [activeAgent, setActiveAgent] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
 
   useEffect(() => {
-    if (user && !isDemoMode) {
+
+    if (!loading && user && !isDemoMode) {
+
       const role = user.role
       if (role === 'ADMIN') router.push('/dashboards/admin')
       else if (role === 'SUPERVISOR') router.push('/dashboards/supervisor')
       else if (role === 'INSPECTOR') router.push('/dashboards/inspector')
     }
-  }, [user, isDemoMode, router])
+
+  }, [user, isDemoMode, router, loading])
+
 
   useEffect(() => {
     if (!isPaused) {
