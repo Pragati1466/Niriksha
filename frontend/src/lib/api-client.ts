@@ -1,5 +1,5 @@
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://niriksha.onrender.com'
 console.log('API_BASE =', API_BASE)
 
 type RequestOptions = {
