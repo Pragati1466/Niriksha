@@ -63,11 +63,20 @@ const authLimiter = rateLimit({
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3001',
+      'https://niriksha-nu.vercel.app',
+      'https://www.niriksha-nu.vercel.app',
+    ]
+
+    if (!origin || allowedOrigins.includes(origin) || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1') || origin.includes('.vercel.app')) {
       callback(null, true)
     } else if (process.env.ALLOWED_ORIGINS) {
-      const allowedOrigins = process.env.ALLOWED_ORIGINS.split(',')
-      if (allowedOrigins.includes(origin)) {
+      const configuredOrigins = process.env.ALLOWED_ORIGINS.split(',')
+      if (configuredOrigins.includes(origin)) {
         callback(null, true)
       } else {
         callback(new Error('Not allowed by CORS'))
