@@ -4,16 +4,13 @@ import { useEffect } from 'react'
 
 export function ServiceWorkerRegister() {
   useEffect(() => {
+    // Temporarily disable Service Worker to debug login issues
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').then(
-          (registration) => {
-            console.log('ServiceWorker registration successful')
-          },
-          (error) => {
-            console.log('ServiceWorker registration failed', error)
-          }
-        )
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => {
+          registration.unregister()
+          console.log('ServiceWorker unregistered')
+        })
       })
     }
   }, [])
