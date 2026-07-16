@@ -1,6 +1,6 @@
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-
+console.log('API_BASE =', API_BASE)
 
 type RequestOptions = {
   method?: string
