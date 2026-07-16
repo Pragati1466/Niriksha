@@ -55,7 +55,7 @@ export function FloatingChatWidget() {
 
     try {
 
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://niriksha.onrender.com'
 
       const response = await fetch(`${API_BASE}/api/ai-features/chat/ask`, {
         method: 'POST',

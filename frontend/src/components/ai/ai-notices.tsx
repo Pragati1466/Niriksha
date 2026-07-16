@@ -108,7 +108,7 @@ export function AINotices() {
                   File: {noticePath}
                 </p>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={() => window.open(`http://localhost:3001/${noticePath}`, '_blank')}>
+                  <Button size="sm" onClick={() => window.open(`${process.env.NEXT_PUBLIC_API_URL || 'https://niriksha.onrender.com'}/${noticePath}`, '_blank')}>
                     Download PDF
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => setNoticePath(null)}>
