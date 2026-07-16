@@ -25,15 +25,18 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('Login form submitted with email:', email)
     setError('')
     setLoading(true)
 
     try {
-
+      console.log('Calling login function...')
       await login(email, password)
+      console.log('Login successful, redirecting...')
       router.push('/')
 
     } catch (err) {
+      console.error('Login error:', err)
       setError('Invalid email or password')
     } finally {
       setLoading(false)
